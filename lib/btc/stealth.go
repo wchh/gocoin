@@ -1,16 +1,15 @@
 package btc
 
 import (
-	"fmt"
 	"bytes"
-	"errors"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"github.com/piotrnar/gocoin/lib/secp256k1"
-	"code.google.com/p/go.crypto/ripemd160"
+	"golang.org/x/crypto/ripemd160"
 )
-
 
 func StealthAddressVersion(testnet bool) byte {
 	if testnet {
@@ -20,26 +19,24 @@ func StealthAddressVersion(testnet bool) byte {
 	}
 }
 
-
 type StealthAddr struct {
-	Version byte
-	Options byte
-	ScanKey [33]byte
+	Version   byte
+	Options   byte
+	ScanKey   [33]byte
 	SpendKeys [][33]byte
-	Sigs byte
-	Prefix []byte
+	Sigs      byte
+	Prefix    []byte
 }
-
 
 func NewStealthAddr(dec []byte) (a *StealthAddr, e error) {
 	var tmp byte
 
-	if (len(dec)<2+33+33+1+1+4) {
+	if len(dec) < 2+33+33+1+1+4 {
 		e = errors.New("StealthAddr: data too short")
 		return
 	}
 
-	sh := Sha2Sum(dec[0:len(dec)-4])
+	sh := Sha2Sum(dec[0 : len(dec)-4])
 	if !bytes.Equal(sh[:4], dec[len(dec)-4:len(dec)]) {
 		e = errors.New("StealthAddr: Checksum error")
 		return
@@ -47,7 +44,7 @@ func NewStealthAddr(dec []byte) (a *StealthAddr, e error) {
 
 	a = new(StealthAddr)
 
-	b := bytes.NewBuffer(dec[0:len(dec)-4])
+	b := bytes.NewBuffer(dec[0 : len(dec)-4])
 
 	if a.Version, e = b.ReadByte(); e != nil {
 		a = nil
@@ -77,12 +74,12 @@ func NewStealthAddr(dec []byte) (a *StealthAddr, e error) {
 		return
 	}
 	a.Prefix = b.Bytes()
-	if len(a.Prefix)==0 {
+	if len(a.Prefix) == 0 {
 		a = nil
 		e = errors.New("StealthAddr: Missing prefix")
 	}
 
-	if len(a.Prefix)>0 && a.Prefix[0]>32 {
+	if len(a.Prefix) > 0 && a.Prefix[0] > 32 {
 		e = errors.New("StealthAddr: Prefix out of range")
 		a = nil
 	}
@@ -90,16 +87,14 @@ func NewStealthAddr(dec []byte) (a *StealthAddr, e error) {
 	return
 }
 
-
 func NewStealthAddrFromString(hs string) (a *StealthAddr, e error) {
 	dec := Decodeb58(hs)
 	if dec == nil {
-		e = errors.New("StealthAddr: Cannot decode b58 string *"+hs+"*")
+		e = errors.New("StealthAddr: Cannot decode b58 string *" + hs + "*")
 		return
 	}
 	return NewStealthAddr(dec)
 }
-
 
 func (a *StealthAddr) BytesNoPrefix() []byte {
 	b := new(bytes.Buffer)
@@ -107,21 +102,19 @@ func (a *StealthAddr) BytesNoPrefix() []byte {
 	b.WriteByte(a.Options)
 	b.Write(a.ScanKey[:])
 	b.WriteByte(byte(len(a.SpendKeys)))
-	for i:=range a.SpendKeys {
+	for i := range a.SpendKeys {
 		b.Write(a.SpendKeys[i][:])
 	}
 	b.WriteByte(a.Sigs)
 	return b.Bytes()
 }
 
-
 func (a *StealthAddr) PrefixLen() byte {
-	if len(a.Prefix)==0 {
+	if len(a.Prefix) == 0 {
 		return 0
 	}
 	return a.Prefix[0]
 }
-
 
 func (a *StealthAddr) Bytes(checksum bool) []byte {
 	b := new(bytes.Buffer)
@@ -134,11 +127,9 @@ func (a *StealthAddr) Bytes(checksum bool) []byte {
 	return b.Bytes()
 }
 
-
-func (a *StealthAddr) String() (string) {
+func (a *StealthAddr) String() string {
 	return Encodeb58(a.Bytes(true))
 }
-
 
 // Calculate a unique 200-bits long hash of the address
 func (a *StealthAddr) Hash160() []byte {
@@ -146,7 +137,6 @@ func (a *StealthAddr) Hash160() []byte {
 	rim.Write(a.BytesNoPrefix())
 	return rim.Sum(nil)
 }
-
 
 // Calculate the stealth difference
 func StealthDH(pub, priv []byte) []byte {
@@ -161,7 +151,6 @@ func StealthDH(pub, priv []byte) []byte {
 	return s.Sum(nil)
 }
 
-
 // Calculate the stealth difference
 func StealthPub(pub, priv []byte) (res []byte) {
 	res = make([]byte, 33)
@@ -171,29 +160,28 @@ func StealthPub(pub, priv []byte) (res []byte) {
 	return
 }
 
-
 // Calculate the stealth difference
 func (sa *StealthAddr) CheckPrefix(cur []byte) bool {
 	var idx, plen, byt, mask, match byte
-	if len(sa.Prefix)==0 {
+	if len(sa.Prefix) == 0 {
 		return true
 	}
 	plen = sa.Prefix[0]
 	if plen > 0 {
 		mask = 0x80
-		match = cur[0]^sa.Prefix[1]
+		match = cur[0] ^ sa.Prefix[1]
 		for {
-			if (match&mask) != 0 {
+			if (match & mask) != 0 {
 				return false
 			}
-			if idx==(plen-1) {
+			if idx == (plen - 1) {
 				break
 			}
 			idx++
-			if mask==0x01 {
+			if mask == 0x01 {
 				byt++
 				mask = 0x80
-				match = cur[byt]^sa.Prefix[byt+1]
+				match = cur[byt] ^ sa.Prefix[byt+1]
 			} else {
 				mask >>= 1
 			}
@@ -202,13 +190,11 @@ func (sa *StealthAddr) CheckPrefix(cur []byte) bool {
 	return true
 }
 
-
 func (sa *StealthAddr) CheckNonce(payload []byte) bool {
 	sha := sha256.New()
 	sha.Write(payload)
 	return sa.CheckPrefix(sha.Sum(nil)[:4])
 }
-
 
 // Thanks @dabura667 - https://bitcointalk.org/index.php?topic=590349.msg6560332#msg6560332
 func MakeStealthTxOuts(sa *StealthAddr, value uint64, testnet bool) (res []*TxOut, er error) {
@@ -251,12 +237,12 @@ pick_different_e:
 		sha.Reset()
 
 		nonce++
-		if nonce==nonce_from {
+		if nonce == nonce_from {
 			fmt.Println("EOF")
 			goto pick_different_e
 		}
 
-		if (nonce&0xfffff)==0 {
+		if (nonce & 0xfffff) == 0 {
 			fmt.Print(".")
 		}
 	}
@@ -264,7 +250,7 @@ pick_different_e:
 	// 8. Once you have the nonce and the ephemkey, you can create the first output, which is
 	pkscr = make([]byte, 40)
 	pkscr[0] = 0x6a // OP_RETURN
-	pkscr[1] = 38 // length
+	pkscr[1] = 38   // length
 	pkscr[2] = 0x06 // always 6
 	binary.LittleEndian.PutUint32(pkscr[3:7], nonce)
 	copy(pkscr[7:40], ephemkey)
@@ -282,7 +268,7 @@ pick_different_e:
 
 	// 11. Create a normal P2KH output spending to D' as public key.
 	adr := NewAddrFromPubkey(Dpr, AddrVerPubkey(testnet))
-	res[1] = &TxOut{Value: value, Pk_script: adr.OutScript() }
+	res[1] = &TxOut{Value: value, Pk_script: adr.OutScript()}
 
 	return
 }
