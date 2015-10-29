@@ -1,9 +1,9 @@
 package btc
 
 import (
-	"errors"
 	"encoding/hex"
-	"github.com/piotrnar/gocoin/lib/secp256k1"
+	"errors"
+	"github.com/wchh/gocoin/lib/secp256k1"
 )
 
 type PublicKey struct {
@@ -18,12 +18,11 @@ type Signature struct {
 func NewPublicKey(buf []byte) (res *PublicKey, e error) {
 	res = new(PublicKey)
 	if !res.XY.ParsePubkey(buf) {
-		e = errors.New("NewPublicKey: Unknown format: "+hex.EncodeToString(buf[:]))
+		e = errors.New("NewPublicKey: Unknown format: " + hex.EncodeToString(buf[:]))
 		res = nil
 	}
 	return
 }
-
 
 func NewSignature(buf []byte) (*Signature, error) {
 	sig := new(Signature)
@@ -31,7 +30,7 @@ func NewSignature(buf []byte) (*Signature, error) {
 	if le < 0 {
 		return nil, errors.New("NewSignature: ParseBytes error")
 	}
-	if le<len(buf) {
+	if le < len(buf) {
 		sig.HashType = buf[len(buf)-1]
 	}
 	return sig, nil
@@ -45,7 +44,6 @@ func (sig *Signature) RecoverPublicKey(msg []byte, recid int) (key *PublicKey) {
 	}
 	return
 }
-
 
 // Returns serialized canoncal signature followed by a hash type
 func (sig *Signature) Bytes() []byte {

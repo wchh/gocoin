@@ -1,43 +1,43 @@
 package textui
 
 import (
-	"os"
-	"fmt"
-	"time"
-	"sort"
 	"bufio"
-	"strings"
-	"strconv"
-	"runtime"
-	"io/ioutil"
 	"encoding/json"
+	"fmt"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/client/network"
+	"github.com/wchh/gocoin/client/usif"
+	"github.com/wchh/gocoin/lib"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/others/peersdb"
+	"github.com/wchh/gocoin/lib/others/sys"
+	"github.com/wchh/gocoin/lib/qdb"
+	"io/ioutil"
+	"os"
+	"runtime"
 	"runtime/debug"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/qdb"
-	"github.com/piotrnar/gocoin/lib"
-	"github.com/piotrnar/gocoin/lib/others/sys"
-	"github.com/piotrnar/gocoin/client/usif"
-	"github.com/piotrnar/gocoin/client/common"
-	"github.com/piotrnar/gocoin/client/network"
-	"github.com/piotrnar/gocoin/lib/others/peersdb"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 )
 
 type oneUiCmd struct {
-	cmds []string // command name
-	help string // a helf for this command
-	sync bool  // shall be executed in the blochcina therad
+	cmds    []string // command name
+	help    string   // a helf for this command
+	sync    bool     // shall be executed in the blochcina therad
 	handler func(pars string)
 }
 
 var (
-	uiCmds []*oneUiCmd
+	uiCmds      []*oneUiCmd
 	show_prompt bool = true
 )
 
 // add a new UI commend handler
 func newUi(cmds string, sync bool, hn func(string), help string) {
 	cs := strings.Split(cmds, " ")
-	if len(cs[0])>0 {
+	if len(cs[0]) > 0 {
 		var c = new(oneUiCmd)
 		for i := range cs {
 			c.cmds = append(c.cmds, cs[i])
@@ -45,10 +45,10 @@ func newUi(cmds string, sync bool, hn func(string), help string) {
 		c.sync = sync
 		c.help = help
 		c.handler = hn
-		if len(uiCmds)>0 {
+		if len(uiCmds) > 0 {
 			var i int
-			for i = 0; i<len(uiCmds); i++ {
-				if uiCmds[i].cmds[0]>c.cmds[0] {
+			for i = 0; i < len(uiCmds); i++ {
+				if uiCmds[i].cmds[0] > c.cmds[0] {
 					break // lets have them sorted
 				}
 			}
@@ -70,25 +70,22 @@ func readline() string {
 	return string(li)
 }
 
-
 func AskYesNo(msg string) bool {
 	for {
 		fmt.Print(msg, " (y/n) : ")
 		l := strings.ToLower(readline())
-		if l=="y" {
+		if l == "y" {
 			return true
-		} else if l=="n" {
+		} else if l == "n" {
 			return false
 		}
 	}
 	return false
 }
 
-
 func ShowPrompt() {
 	fmt.Print("> ")
 }
-
 
 func MainThread() {
 	time.Sleep(1e9) // hold on for 1 sencond before showing the show_prompt
@@ -102,16 +99,16 @@ func MainThread() {
 			cmdpar := strings.SplitN(li, " ", 2)
 			cmd := cmdpar[0]
 			param := ""
-			if len(cmdpar)==2 {
+			if len(cmdpar) == 2 {
 				param = cmdpar[1]
 			}
 			found := false
 			for i := range uiCmds {
 				for j := range uiCmds[i].cmds {
-					if cmd==uiCmds[i].cmds[j] {
+					if cmd == uiCmds[i].cmds[j] {
 						found = true
 						if uiCmds[i].sync {
-							usif.ExecUiReq(&usif.OneUiReq{Param:param, Handler:uiCmds[i].handler})
+							usif.ExecUiReq(&usif.OneUiReq{Param: param, Handler: uiCmds[i].handler})
 							show_prompt = false
 						} else {
 							uiCmds[i].handler(param)
@@ -126,11 +123,9 @@ func MainThread() {
 	}
 }
 
-
-
 func show_info(par string) {
 	common.Busy_mutex.Lock()
-	if common.BusyWith!="" {
+	if common.BusyWith != "" {
 		fmt.Println("Chain thread busy with:", common.BusyWith)
 	} else {
 		fmt.Println("Chain thread is idle")
@@ -177,12 +172,11 @@ func show_info(par string) {
 		"  ECDSA cnt:", btc.EcdsaVerifyCnt)
 }
 
-
 func show_counters(par string) {
 	common.CounterMutex.Lock()
 	ck := make([]string, 0)
 	for k, _ := range common.Counter {
-		if par=="" || strings.HasPrefix(k, par) {
+		if par == "" || strings.HasPrefix(k, par) {
 			ck = append(ck, k)
 		}
 	}
@@ -196,7 +190,7 @@ func show_counters(par string) {
 		if len(li)+len(s) >= 80 {
 			fmt.Println(li)
 			li = ""
-		} else if li!="" {
+		} else if li != "" {
 			li += ",   "
 		}
 		li += s
@@ -207,7 +201,6 @@ func show_counters(par string) {
 	common.CounterMutex.Unlock()
 }
 
-
 func ui_dbg(par string) {
 	v, e := strconv.ParseInt(par, 10, 32)
 	if e == nil {
@@ -216,20 +209,18 @@ func ui_dbg(par string) {
 	fmt.Println("common.DebugLevel:", common.DebugLevel)
 }
 
-
 func show_cached(par string) {
 	for _, v := range network.CachedBlocks {
 		fmt.Printf(" * %s -> %s\n", v.Hash.String(), btc.NewUint256(v.ParentHash()).String())
 	}
 }
 
-
 func show_help(par string) {
 	fmt.Println("The following", len(uiCmds), "commands are supported:")
 	for i := range uiCmds {
 		fmt.Print("   ")
 		for j := range uiCmds[i].cmds {
-			if j>0 {
+			if j > 0 {
 				fmt.Print(", ")
 			}
 			fmt.Print(uiCmds[i].cmds[j])
@@ -239,7 +230,6 @@ func show_help(par string) {
 	fmt.Println("All the commands are case sensitive.")
 }
 
-
 func show_mem(p string) {
 	al, sy := sys.MemUsed()
 
@@ -247,16 +237,16 @@ func show_mem(p string) {
 	fmt.Println("SystemMem:", sy>>20, "MB")
 	fmt.Println("QDB Extra:", qdb.ExtraMemoryConsumed>>20, "MB")
 
-	if p=="" {
+	if p == "" {
 		return
 	}
-	if p=="free" {
+	if p == "free" {
 		fmt.Println("Freeing the mem...")
 		sys.FreeMem()
 		show_mem("")
 		return
 	}
-	if p=="gc" {
+	if p == "gc" {
 		fmt.Println("Running GC...")
 		runtime.GC()
 		fmt.Println("Done.")
@@ -271,10 +261,9 @@ func show_mem(p string) {
 	fmt.Println("GC treshold set to", i, "percent")
 }
 
-
 func dump_block(s string) {
 	h := btc.NewUint256FromString(s)
-	if h==nil {
+	if h == nil {
 		println("Specify block's hash")
 		return
 	}
@@ -283,7 +272,7 @@ func dump_block(s string) {
 		println(e.Error())
 		return
 	}
-	fn := h.String()+".bin"
+	fn := h.String() + ".bin"
 	f, e := os.Create(fn)
 	if e != nil {
 		println(e.Error())
@@ -294,63 +283,59 @@ func dump_block(s string) {
 	fmt.Println("Block saved to file:", fn)
 }
 
-
 func ui_quit(par string) {
 	usif.Exit_now = true
 }
-
 
 func blchain_stats(par string) {
 	fmt.Println(common.BlockChain.Stats())
 }
 
-
 func qdb_stats(par string) {
 	fmt.Print(qdb.GetStats())
 }
 
-
 func defrag_blocks(par string) {
 	switch par {
-		case "utxo": usif.DefragBlocksDB = 1
-		case "blks": usif.DefragBlocksDB = 2
-		case "all": usif.DefragBlocksDB = 3
-		default:
-			fmt.Println("Specify what to defragment: utxo, blks or all")
-			return
+	case "utxo":
+		usif.DefragBlocksDB = 1
+	case "blks":
+		usif.DefragBlocksDB = 2
+	case "all":
+		usif.DefragBlocksDB = 3
+	default:
+		fmt.Println("Specify what to defragment: utxo, blks or all")
+		return
 	}
 	usif.Exit_now = true
 }
 
-
 func set_ulmax(par string) {
 	v, e := strconv.ParseUint(par, 10, 64)
 	if e == nil {
-		common.UploadLimit = uint(v<<10)
+		common.UploadLimit = uint(v << 10)
 	}
-	if common.UploadLimit!=0 {
+	if common.UploadLimit != 0 {
 		fmt.Printf("Current upload limit is %d KB/s\n", common.UploadLimit>>10)
 	} else {
 		fmt.Println("The upload speed is not limited")
 	}
 }
 
-
 func set_dlmax(par string) {
 	v, e := strconv.ParseUint(par, 10, 64)
 	if e == nil {
-		common.DownloadLimit = uint(v<<10)
+		common.DownloadLimit = uint(v << 10)
 	}
-	if common.DownloadLimit!=0 {
+	if common.DownloadLimit != 0 {
 		fmt.Printf("Current upload limit is %d KB/s\n", common.DownloadLimit>>10)
 	} else {
 		fmt.Println("The upload speed is not limited")
 	}
 }
 
-
 func set_config(s string) {
-	if s!="" {
+	if s != "" {
 		new := common.CFG
 		e := json.Unmarshal([]byte("{"+s+"}"), &new)
 		if e != nil {
@@ -364,7 +349,6 @@ func set_config(s string) {
 	dat, _ := json.Marshal(&common.CFG)
 	fmt.Println(string(dat))
 }
-
 
 func load_config(s string) {
 	d, e := ioutil.ReadFile(common.ConfigFile)
@@ -381,25 +365,23 @@ func load_config(s string) {
 	fmt.Println("Config reloaded")
 }
 
-
 func save_config(s string) {
 	if common.SaveConfig() {
 		fmt.Println("Current settings saved to", common.ConfigFile)
 	}
 }
 
-
 func show_addresses(par string) {
 	fmt.Println(peersdb.PeerDB.Count(), "peers in the database")
-	if par=="list" {
-		cnt :=  0
+	if par == "list" {
+		cnt := 0
 		peersdb.PeerDB.Browse(func(k qdb.KeyType, v []byte) uint32 {
 			cnt++
 			fmt.Printf("%4d) %s\n", cnt, peersdb.NewPeer(v).String())
 			return 0
 		})
-	} else if par=="ban" {
-		cnt :=  0
+	} else if par == "ban" {
+		cnt := 0
 		peersdb.PeerDB.Browse(func(k qdb.KeyType, v []byte) uint32 {
 			pr := peersdb.NewPeer(v)
 			if pr.Banned != 0 {
@@ -408,7 +390,7 @@ func show_addresses(par string) {
 			}
 			return 0
 		})
-		if cnt==0 {
+		if cnt == 0 {
 			fmt.Println("No banned peers in the DB")
 		}
 	} else if par != "" {
@@ -431,7 +413,6 @@ func show_addresses(par string) {
 		fmt.Println("Use 'peers <number>' to show the most recent ones")
 	}
 }
-
 
 func list_alerst(p string) {
 	network.Alert_access.Lock()
@@ -459,7 +440,6 @@ func list_alerst(p string) {
 	}
 	network.Alert_access.Unlock()
 }
-
 
 func coins_age(s string) {
 	common.BlockChain.Unspent.PrintCoinAge()

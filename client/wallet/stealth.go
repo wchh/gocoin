@@ -1,31 +1,30 @@
 package wallet
 
 import (
-	"os"
-	"fmt"
 	"bytes"
+	"fmt"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/others/sys"
 	"io/ioutil"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/others/sys"
-	"github.com/piotrnar/gocoin/client/common"
+	"os"
 )
-
 
 type stealthCacheRec struct {
 	h160 [20]byte
 	addr *btc.BtcAddr
-	d [32]byte
+	d    [32]byte
 }
 
 var (
 	ArmedStealthSecrets [][]byte
-	StealthSecrets [][]byte
+	StealthSecrets      [][]byte
 
 	StealthAdCache []stealthCacheRec
 )
 
 func FreeStealthSecrets() {
-	for i:=range StealthSecrets {
+	for i := range StealthSecrets {
 		sys.ClearBuffer(StealthSecrets[i])
 	}
 	StealthSecrets = nil
@@ -37,9 +36,9 @@ func FetchStealthKeys() {
 	fis, er := ioutil.ReadDir(dir)
 	if er == nil {
 		for i := range fis {
-			if !fis[i].IsDir() && fis[i].Size()>=32 {
-				d := sys.GetRawData(dir+fis[i].Name())
-				if len(d)!=32 {
+			if !fis[i].IsDir() && fis[i].Size() >= 32 {
+				d := sys.GetRawData(dir + fis[i].Name())
+				if len(d) != 32 {
 					fmt.Println("Error reading key from", dir+fis[i].Name(), len(d))
 				} else {
 					StealthSecrets = append(StealthSecrets, d)
@@ -52,7 +51,7 @@ func FetchStealthKeys() {
 	}
 
 	if !PrecachingComplete {
-		if len(StealthSecrets)==0 {
+		if len(StealthSecrets) == 0 {
 			fmt.Println("Place secrets of your stealth keys in", dir, " (use 'arm' to load more)")
 		} else {
 			fmt.Println(len(StealthSecrets), "stealth keys found in", dir, " (use 'arm' to load more)")
@@ -60,7 +59,6 @@ func FetchStealthKeys() {
 	}
 	return
 }
-
 
 func FindStealthSecret(sa *btc.StealthAddr) (d []byte) {
 	for i := range StealthSecrets {

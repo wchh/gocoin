@@ -1,16 +1,15 @@
 package textui
 
 import (
-	"fmt"
-	"time"
 	"bytes"
+	"encoding/hex"
+	"fmt"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/lib/btc"
 	"regexp"
 	"strconv"
-	"encoding/hex"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/client/common"
+	"time"
 )
-
 
 func do_mining(s string) {
 	var totbtc, hrs uint64
@@ -21,7 +20,7 @@ func do_mining(s string) {
 		hrs = uint64(common.CFG.MiningStatHours)
 	}
 	fmt.Println("Looking back", hrs, "hours...")
-	lim := uint32(time.Now().Add(-time.Hour*time.Duration(hrs)).Unix())
+	lim := uint32(time.Now().Add(-time.Hour * time.Duration(hrs)).Unix())
 	common.Last.Mutex.Lock()
 	bte := common.Last.Block
 	end := bte
@@ -39,7 +38,7 @@ func do_mining(s string) {
 			return
 		}
 		block, e := btc.NewBlock(bl)
-		if e!=nil {
+		if e != nil {
 			println("btc.NewBlock failed", e.Error())
 			return
 		}
@@ -51,7 +50,7 @@ func do_mining(s string) {
 		tot_blocks_len += len(bl)
 		diff += btc.GetDifficulty(block.Bits())
 		common.LockCfg()
-		if common.CFG.Beeps.MinerID!="" &&
+		if common.CFG.Beeps.MinerID != "" &&
 			bytes.Contains(bl[bt.TxOffset:bt.TxOffset+cbtxlen], []byte(common.CFG.Beeps.MinerID)) {
 			block.BuildTxList()
 			totbtc += block.Txs[0].TxOut[0].Value
@@ -65,7 +64,7 @@ func do_mining(s string) {
 		common.UnlockCfg()
 
 		res := bip100x.Find(cbasetx.TxIn[0].ScriptSig)
-		if res!=nil {
+		if res != nil {
 			bip100_voting[string(res)]++
 			nimer, _ := common.TxMiner(cbasetx)
 			fmt.Println("      block", end.Height, "by", nimer, "voting", string(res), " total:", bip100_voting[string(res)])
@@ -79,7 +78,7 @@ func do_mining(s string) {
 	}
 	diff /= float64(tot_blocks)
 	common.LockCfg()
-	if common.CFG.Beeps.MinerID!="" {
+	if common.CFG.Beeps.MinerID != "" {
 		fmt.Printf("%.8f BTC mined by %s, in %d blocks for the last %d hours\n",
 			float64(totbtc)/1e8, common.CFG.Beeps.MinerID, cnt, hrs)
 	}
@@ -87,18 +86,17 @@ func do_mining(s string) {
 	if cnt > 0 {
 		fmt.Printf("Projected weekly income : %.0f BTC,  estimated hashrate : %s\n",
 			7*24*float64(totbtc)/float64(hrs)/1e8,
-			common.HashrateToString(float64(cnt)/float64(6*hrs) * diff * 7158278.826667))
+			common.HashrateToString(float64(cnt)/float64(6*hrs)*diff*7158278.826667))
 	}
-	bph := float64(tot_blocks)/float64(hrs)
+	bph := float64(tot_blocks) / float64(hrs)
 	fmt.Printf("Total network hashrate : %s @ average diff %.0f  (%.2f bph)\n",
-		common.HashrateToString(bph/6 * diff * 7158278.826667), diff, bph)
+		common.HashrateToString(bph/6*diff*7158278.826667), diff, bph)
 	fmt.Printf("Average block size was %.1f KB,  next difficulty change in %d blocks\n",
 		float64(tot_blocks_len/tot_blocks)/1e3, 2016-bte.Height%2016)
 }
 
-
 func set_miner(p string) {
-	if p=="" {
+	if p == "" {
 		common.ReloadMiners()
 		fmt.Println("Specify MinerID string or one of the numberic values:")
 		for i := range common.MinerIds {
@@ -107,7 +105,7 @@ func set_miner(p string) {
 		return
 	}
 
-	if p=="off" {
+	if p == "off" {
 		common.LockCfg()
 		common.CFG.Beeps.MinerID = ""
 		common.UnlockCfg()
@@ -117,9 +115,9 @@ func set_miner(p string) {
 
 	v, e := strconv.ParseUint(p, 10, 32)
 	common.LockCfg()
-	if e!=nil {
+	if e != nil {
 		common.CFG.Beeps.MinerID = p
-	} else if int(v)<len(common.MinerIds) {
+	} else if int(v) < len(common.MinerIds) {
 		common.CFG.Beeps.MinerID = string(common.MinerIds[v].Tag)
 	} else {
 		fmt.Println("The number is too big. Max is", len(common.MinerIds)-1)
@@ -127,7 +125,6 @@ func set_miner(p string) {
 	fmt.Printf("Current miner ID: '%s'\n", common.CFG.Beeps.MinerID)
 	common.UnlockCfg()
 }
-
 
 func init() {
 	newUi("minerset mid", false, set_miner, "Setup the mining monitor with the given ID, or off to disable the monitor")

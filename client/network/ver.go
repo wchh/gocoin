@@ -1,15 +1,14 @@
 package network
 
 import (
-	"time"
 	"bytes"
-	"errors"
 	"encoding/binary"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/others/sys"
-	"github.com/piotrnar/gocoin/client/common"
+	"errors"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/others/sys"
+	"time"
 )
-
 
 func (c *OneConnection) SendVersion() {
 	b := bytes.NewBuffer([]byte{})
@@ -19,7 +18,7 @@ func (c *OneConnection) SendVersion() {
 	binary.Write(b, binary.LittleEndian, uint64(time.Now().Unix()))
 
 	b.Write(c.PeerAddr.NetAddr.Bytes())
-	if ExternalAddrLen()>0 {
+	if ExternalAddrLen() > 0 {
 		b.Write(BestExternalAddr())
 	} else {
 		b.Write(bytes.Repeat([]byte{0}, 26))
@@ -34,13 +33,11 @@ func (c *OneConnection) SendVersion() {
 	binary.Write(b, binary.LittleEndian, uint32(common.Last.Block.Height))
 	common.Last.Mutex.Unlock()
 	if !common.CFG.TXPool.Enabled {
-		b.WriteByte(0)  // don't notify me about txs
+		b.WriteByte(0) // don't notify me about txs
 	}
 
 	c.SendRawMsg("version", b.Bytes())
 }
-
-
 
 func (c *OneConnection) HandleVersion(pl []byte) error {
 	if len(pl) >= 80 /*Up to, includiong, the nonce */ {
@@ -63,19 +60,19 @@ func (c *OneConnection) HandleVersion(pl []byte) error {
 			c.Node.ReportedIp4 = binary.BigEndian.Uint32(pl[40:44])
 			_, new_ext_ip = ExternalIp4[c.Node.ReportedIp4]
 			new_ext_ip = !new_ext_ip
-			ExternalIp4[c.Node.ReportedIp4] = [2]uint{ExternalIp4[c.Node.ReportedIp4][0]+1, uint(time.Now().Unix())}
+			ExternalIp4[c.Node.ReportedIp4] = [2]uint{ExternalIp4[c.Node.ReportedIp4][0] + 1, uint(time.Now().Unix())}
 			ExternalIpMutex.Unlock()
 		}
 		if len(pl) >= 86 {
 			c.Mutex.Lock()
 			le, of := btc.VLen(pl[80:])
 			of += 80
-			c.Node.Agent = string(pl[of:of+le])
+			c.Node.Agent = string(pl[of : of+le])
 			of += le
 			if len(pl) >= of+4 {
-				c.Node.Height = binary.LittleEndian.Uint32(pl[of:of+4])
+				c.Node.Height = binary.LittleEndian.Uint32(pl[of : of+4])
 				of += 4
-				if len(pl) > of && pl[of]==0 {
+				if len(pl) > of && pl[of] == 0 {
 					c.Node.DoNotRelayTxs = true
 				}
 			}

@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/piotrnar/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/btc"
 	"io/ioutil"
 	"net/http"
 )
@@ -96,7 +96,6 @@ func GetTxFromExplorer(txid *btc.Uint256) ([]byte, []byte) {
 	}
 	return nil, nil
 }
-
 
 // Download raw transaction from blockr.io
 func GetTxFromBlockrIo(txid *btc.Uint256) (raw []byte) {

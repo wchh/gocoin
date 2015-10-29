@@ -1,16 +1,14 @@
 package network
 
 import (
-	"fmt"
-	"time"
 	"bytes"
 	"encoding/binary"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/chain"
-	"github.com/piotrnar/gocoin/client/common"
+	"fmt"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/chain"
+	"time"
 )
-
-
 
 func (c *OneConnection) ProcessInv(pl []byte) {
 	if len(pl) < 37 {
@@ -21,34 +19,34 @@ func (c *OneConnection) ProcessInv(pl []byte) {
 	c.InvsRecieved++
 
 	cnt, of := btc.VLen(pl)
-	if len(pl) != of + 36*cnt {
+	if len(pl) != of+36*cnt {
 		println("inv payload length mismatch", len(pl), of, cnt)
 	}
 
 	var blinv2ask []byte
 
-	for i:=0; i<cnt; i++ {
-		typ := binary.LittleEndian.Uint32(pl[of:of+4])
-		common.CountSafe(fmt.Sprint("InvGot",typ))
-		if typ==2 {
-			if blockWanted(pl[of+4:of+36]) {
+	for i := 0; i < cnt; i++ {
+		typ := binary.LittleEndian.Uint32(pl[of : of+4])
+		common.CountSafe(fmt.Sprint("InvGot", typ))
+		if typ == 2 {
+			if blockWanted(pl[of+4 : of+36]) {
 				blinv2ask = append(blinv2ask, pl[of+4:of+36]...)
 			}
-		} else if typ==1 {
+		} else if typ == 1 {
 			if common.CFG.TXPool.Enabled {
-				c.TxInvNotify(pl[of+4:of+36])
+				c.TxInvNotify(pl[of+4 : of+36])
 			}
 		}
-		of+= 36
+		of += 36
 	}
 
-	if len(blinv2ask)>0 {
+	if len(blinv2ask) > 0 {
 		bu := new(bytes.Buffer)
 		btc.WriteVlen(bu, uint64(len(blinv2ask)/32))
-		for i:=0; i<len(blinv2ask); i+=32 {
-			bh := btc.NewUint256(blinv2ask[i:i+32])
+		for i := 0; i < len(blinv2ask); i += 32 {
+			bh := btc.NewUint256(blinv2ask[i : i+32])
 			c.Mutex.Lock()
-			c.GetBlockInProgress[bh.BIdx()] = &oneBlockDl{hash:bh, start:time.Now()}
+			c.GetBlockInProgress[bh.BIdx()] = &oneBlockDl{hash: bh, start: time.Now()}
 			c.Mutex.Unlock()
 			binary.Write(bu, binary.LittleEndian, uint32(2))
 			bu.Write(bh.Hash[:])
@@ -58,7 +56,6 @@ func (c *OneConnection) ProcessInv(pl []byte) {
 
 	return
 }
-
 
 // This function is called from the main thread (or from an UI)
 func NetRouteInv(typ uint32, h *btc.Uint256, fromConn *OneConnection) (cnt uint) {
@@ -74,14 +71,14 @@ func NetRouteInv(typ uint32, h *btc.Uint256, fromConn *OneConnection) (cnt uint)
 	for _, v := range OpenCons {
 		if v != fromConn { // except the one that this inv came from
 			v.Mutex.Lock()
-			if v.Node.DoNotRelayTxs && typ==1 {
+			if v.Node.DoNotRelayTxs && typ == 1 {
 				// This node does not want tx inv (it came with its version message)
 				common.CountSafe("SendInvNoTxNode")
 			} else {
-				if fromConn==nil && v.InvsRecieved==0 {
+				if fromConn == nil && v.InvsRecieved == 0 {
 					// Do not broadcast own txs to nodes that never sent any invs to us
 					common.CountSafe("SendInvOwnBlocked")
-				} else if len(v.PendingInvs)<500 {
+				} else if len(v.PendingInvs) < 500 {
 					v.PendingInvs = append(v.PendingInvs, inv)
 					cnt++
 				} else {
@@ -98,32 +95,30 @@ func NetRouteInv(typ uint32, h *btc.Uint256, fromConn *OneConnection) (cnt uint)
 	return
 }
 
-
 // Call this function only when BlockIndexAccess is locked
-func addInvBlockBranch(inv map[[32]byte] bool, bl *chain.BlockTreeNode, stop *btc.Uint256) {
-	if len(inv)>=500 || bl.BlockHash.Equal(stop) {
+func addInvBlockBranch(inv map[[32]byte]bool, bl *chain.BlockTreeNode, stop *btc.Uint256) {
+	if len(inv) >= 500 || bl.BlockHash.Equal(stop) {
 		return
 	}
 	inv[bl.BlockHash.Hash] = true
 	for i := range bl.Childs {
-		if len(inv)>=500 {
+		if len(inv) >= 500 {
 			return
 		}
 		addInvBlockBranch(inv, bl.Childs[i], stop)
 	}
 }
 
-
 func (c *OneConnection) GetBlocks(pl []byte) {
 	h2get, hashstop, e := parseLocatorsPayload(pl)
 
-	if e!=nil || len(h2get)<1 || hashstop==nil {
+	if e != nil || len(h2get) < 1 || hashstop == nil {
 		println("GetBlocks: error parsing payload from", c.PeerAddr.Ip())
 		c.DoS("BadGetBlks")
 		return
 	}
 
-	invs := make(map[[32]byte] bool, 500)
+	invs := make(map[[32]byte]bool, 500)
 	for i := range h2get {
 		common.BlockChain.BlockIndexAccess.Lock()
 		if bl, ok := common.BlockChain.BlockIndex[h2get[i].BIdx()]; ok {
@@ -131,15 +126,15 @@ func (c *OneConnection) GetBlocks(pl []byte) {
 			common.Last.Mutex.Lock()
 			end := common.Last.Block
 			common.Last.Mutex.Unlock()
-			for ; end!=nil && end.Height>=bl.Height; end = end.Parent {
-				if end==bl {
-					addInvBlockBranch(invs, bl, hashstop)  // Yes - this is the main chain
-					if common.DebugLevel>0 {
+			for ; end != nil && end.Height >= bl.Height; end = end.Parent {
+				if end == bl {
+					addInvBlockBranch(invs, bl, hashstop) // Yes - this is the main chain
+					if common.DebugLevel > 0 {
 						fmt.Println(c.PeerAddr.Ip(), "getblocks from", bl.Height,
-							"stop at",  hashstop.String(), "->", len(invs), "invs")
+							"stop at", hashstop.String(), "->", len(invs), "invs")
 					}
 
-					if len(invs)>0 {
+					if len(invs) > 0 {
 						common.BlockChain.BlockIndexAccess.Unlock()
 
 						inv := new(bytes.Buffer)
@@ -161,11 +156,10 @@ func (c *OneConnection) GetBlocks(pl []byte) {
 	return
 }
 
-
 func (c *OneConnection) SendInvs() (res bool) {
 	b := new(bytes.Buffer)
 	c.Mutex.Lock()
-	if len(c.PendingInvs)>0 {
+	if len(c.PendingInvs) > 0 {
 		btc.WriteVlen(b, uint64(len(c.PendingInvs)))
 		for i := range c.PendingInvs {
 			b.Write((*c.PendingInvs[i])[:])
@@ -179,7 +173,6 @@ func (c *OneConnection) SendInvs() (res bool) {
 	}
 	return
 }
-
 
 func (c *OneConnection) getblocksNeeded() bool {
 	common.Last.Mutex.Lock()
@@ -205,16 +198,16 @@ func (c *OneConnection) getblocksNeeded() bool {
 		if GetBlocksAskBack > 0 {
 			common.BlockChain.BlockIndexAccess.Lock()
 			cnt_each := 0
-			for i:=0; i < GetBlocksAskBack && lb.Parent != nil; i++ {
+			for i := 0; i < GetBlocksAskBack && lb.Parent != nil; i++ {
 				lb = lb.Parent
 				cnt_each++
-				if cnt_each==200 {
+				if cnt_each == 200 {
 					b[4]++
 					b = append(b, lb.BlockHash.Hash[:]...)
 					cnt_each = 0
 				}
 			}
-			if cnt_each!=0 {
+			if cnt_each != 0 {
 				b[4]++
 				b = append(b, lb.BlockHash.Hash[:]...)
 			}

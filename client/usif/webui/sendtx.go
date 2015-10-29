@@ -1,26 +1,24 @@
 package webui
 
 import (
-	"fmt"
-	"html"
-	"bytes"
-	"strings"
-	"strconv"
-	"net/http"
 	"archive/zip"
+	"bytes"
 	"encoding/hex"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/chain"
-	"github.com/piotrnar/gocoin/client/common"
-	"github.com/piotrnar/gocoin/client/wallet"
+	"fmt"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/client/wallet"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/chain"
+	"html"
+	"net/http"
+	"strconv"
+	"strings"
 )
-
 
 const (
 	AvgSignatureSize = 73
 	AvgPublicKeySize = 34 /*Assumine compressed key*/
 )
-
 
 func dl_payment(w http.ResponseWriter, r *http.Request) {
 	if !ipchecker(r) {
@@ -29,7 +27,7 @@ func dl_payment(w http.ResponseWriter, r *http.Request) {
 
 	var err string
 
-	if len(r.Form["outcnt"])==1 {
+	if len(r.Form["outcnt"]) == 1 {
 		var thisbal chain.AllUnspentTx
 		var pay_cmd string
 		var totalinput, spentsofar uint64
@@ -45,16 +43,16 @@ func dl_payment(w http.ResponseWriter, r *http.Request) {
 		outcnt, _ := strconv.ParseUint(r.Form["outcnt"][0], 10, 32)
 
 		wallet.BalanceMutex.Lock()
-		for i:=1; i<=int(outcnt); i++ {
+		for i := 1; i <= int(outcnt); i++ {
 			is := fmt.Sprint(i)
-			if len(r.Form["txout"+is])==1 && r.Form["txout"+is][0]=="on" {
+			if len(r.Form["txout"+is]) == 1 && r.Form["txout"+is][0] == "on" {
 				hash := btc.NewUint256FromString(r.Form["txid"+is][0])
-				if hash!=nil {
+				if hash != nil {
 					vout, er := strconv.ParseUint(r.Form["txvout"+is][0], 10, 32)
-					if er==nil {
-						var po = btc.TxPrevOut{Hash:hash.Hash, Vout:uint32(vout)}
+					if er == nil {
+						var po = btc.TxPrevOut{Hash: hash.Hash, Vout: uint32(vout)}
 						for j := range wallet.MyBalance {
-							if wallet.MyBalance[j].TxPrevOut==po {
+							if wallet.MyBalance[j].TxPrevOut == po {
 								thisbal = append(thisbal, wallet.MyBalance[j])
 
 								// Add the input to our tx
@@ -87,20 +85,20 @@ func dl_payment(w http.ResponseWriter, r *http.Request) {
 		}
 		wallet.BalanceMutex.Unlock()
 
-		for i:=1; ; i++ {
+		for i := 1; ; i++ {
 			adridx := fmt.Sprint("adr", i)
 			btcidx := fmt.Sprint("btc", i)
 
-			if len(r.Form[adridx])!=1 || len(r.Form[btcidx])!=1 {
+			if len(r.Form[adridx]) != 1 || len(r.Form[btcidx]) != 1 {
 				break
 			}
 
-			if len(r.Form[adridx][0])>1 {
+			if len(r.Form[adridx][0]) > 1 {
 				addr, er := btc.NewAddrFromString(r.Form[adridx][0])
 				if er == nil {
 					am, er := btc.StringToSatoshis(r.Form[btcidx][0])
-					if er==nil && am>0 {
-						if pay_cmd=="" {
+					if er == nil && am > 0 {
+						if pay_cmd == "" {
 							pay_cmd = "wallet -useallinputs -send "
 						} else {
 							pay_cmd += ","
@@ -126,7 +124,7 @@ func dl_payment(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if pay_cmd=="" {
+		if pay_cmd == "" {
 			err = "No inputs selected"
 			goto error
 		}
@@ -140,7 +138,7 @@ func dl_payment(w http.ResponseWriter, r *http.Request) {
 		pay_cmd += " -fee " + r.Form["txfee"][0]
 		spentsofar += am
 
-		if len(r.Form["change"][0])>1 {
+		if len(r.Form["change"][0]) > 1 {
 			addr, er := btc.NewAddrFromString(r.Form["change"][0])
 			if er != nil {
 				err = "Incorrect change address: " + r.Form["change"][0]
@@ -152,7 +150,7 @@ func dl_payment(w http.ResponseWriter, r *http.Request) {
 
 		if totalinput > spentsofar {
 			// Add change output
-			outs, er := btc.NewSpendOutputs(change_addr, totalinput - spentsofar, common.CFG.Testnet)
+			outs, er := btc.NewSpendOutputs(change_addr, totalinput-spentsofar, common.CFG.Testnet)
 			if er != nil {
 				err = er.Error()
 				goto error
@@ -163,7 +161,7 @@ func dl_payment(w http.ResponseWriter, r *http.Request) {
 		buf := new(bytes.Buffer)
 		zi := zip.NewWriter(buf)
 
-		was_tx := make(map [[32]byte] bool, len(thisbal))
+		was_tx := make(map[[32]byte]bool, len(thisbal))
 		for i := range thisbal {
 			if was_tx[thisbal[i].TxPrevOut.Hash] {
 				continue
@@ -203,7 +201,7 @@ func dl_payment(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(fz, "wallet -msign", k, "-raw ...")
 			}
 		} else {
-			if pay_cmd!="" {
+			if pay_cmd != "" {
 				fz, _ = zi.Create(common.CFG.PayCommandName)
 				fz.Write([]byte(pay_cmd))
 			}
@@ -212,7 +210,6 @@ func dl_payment(w http.ResponseWriter, r *http.Request) {
 		// Non-multisig transaction ...
 		fz, _ = zi.Create("tx2sign.txt")
 		fz.Write([]byte(hex.EncodeToString(tx.Serialize())))
-
 
 		zi.Close()
 		w.Header()["Content-Type"] = []string{"application/zip"}
@@ -229,7 +226,6 @@ error:
 	write_html_tail(w)
 }
 
-
 func p_snd(w http.ResponseWriter, r *http.Request) {
 	if !ipchecker(r) {
 		return
@@ -238,7 +234,7 @@ func p_snd(w http.ResponseWriter, r *http.Request) {
 	s := load_template("send.html")
 
 	wallet.BalanceMutex.Lock()
-	if wallet.MyWallet!=nil && len(wallet.MyBalance)>0 {
+	if wallet.MyWallet != nil && len(wallet.MyBalance) > 0 {
 		wal := load_template("send_wal.html")
 		row_tmp := load_template("send_wal_row.html")
 		wal = strings.Replace(wal, "{TOTAL_BTC}", fmt.Sprintf("%.8f", float64(wallet.LastBalance)/1e8), 1)
@@ -263,7 +259,6 @@ func p_snd(w http.ResponseWriter, r *http.Request) {
 				estimated_sig_size = AvgSignatureSize + AvgPublicKeySize
 			}
 
-
 			row = strings.Replace(row, "{ADDR_LABEL}", html.EscapeString(lab), 1)
 			row = strings.Replace(row, "{ROW_NUMBER}", fmt.Sprint(i+1), -1)
 			row = strings.Replace(row, "{MINED_IN}", fmt.Sprint(wallet.MyBalance[i].MinedAt), 1)
@@ -286,11 +281,11 @@ func p_snd(w http.ResponseWriter, r *http.Request) {
 			wal = templ_add(wal, "/*WALLET_ENTRY_JS*/", row)
 		}
 
-		wal = strings.Replace(wal, "/*WALLET_ENTRY_JS*/", "const ADDR_LIST_SIZE = " + fmt.Sprint(common.CFG.WebUI.AddrListLen), 1)
+		wal = strings.Replace(wal, "/*WALLET_ENTRY_JS*/", "const ADDR_LIST_SIZE = "+fmt.Sprint(common.CFG.WebUI.AddrListLen), 1)
 
 		s = strings.Replace(s, "<!--WALLET-->", wal, 1)
 	} else {
-		if wallet.MyWallet==nil {
+		if wallet.MyWallet == nil {
 			s = strings.Replace(s, "<!--WALLET-->", "You have no wallet", 1)
 		} else {
 			s = strings.Replace(s, "<!--WALLET-->", "Your current wallet is empty", 1)

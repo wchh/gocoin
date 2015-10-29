@@ -2,27 +2,25 @@ package main
 
 import (
 	"fmt"
-	"sync"
+	"github.com/wchh/gocoin/lib/btc"
 	"sort"
-	"time"
+	"sync"
 	"sync/atomic"
-	"github.com/piotrnar/gocoin/lib/btc"
+	"time"
 )
 
 var (
-	_CNT map[string] uint = make(map[string] uint)
-	cnt_mut sync.Mutex
+	_CNT               map[string]uint = make(map[string]uint)
+	cnt_mut            sync.Mutex
 	EmptyInProgressCnt uint64
-	LastBlockAsked uint32
+	LastBlockAsked     uint32
 )
-
 
 func COUNTER(s string) {
 	cnt_mut.Lock()
 	_CNT[s]++
 	cnt_mut.Unlock()
 }
-
 
 func print_counters() {
 	var s string
@@ -36,7 +34,7 @@ func print_counters() {
 	cnt_mut.Unlock()
 	sort.Strings(ss)
 	for i = range ss {
-		s += "  "+ss[i]
+		s += "  " + ss[i]
 	}
 	fmt.Println(s)
 	return

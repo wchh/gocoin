@@ -1,17 +1,17 @@
 package network
 
 import (
-	"sync"
-	"encoding/hex"
 	"encoding/binary"
-	"github.com/piotrnar/gocoin/lib/btc"
+	"encoding/hex"
+	"github.com/wchh/gocoin/lib/btc"
+	"sync"
 )
 
 var (
-	Alerts map[uint64] *btc.Alert = make(map[uint64] *btc.Alert)
+	Alerts       map[uint64]*btc.Alert = make(map[uint64]*btc.Alert)
 	Alert_access sync.Mutex
-	AlertPubKey []byte  // set in init.go
-	NetAlerts chan string = make(chan string, 1)
+	AlertPubKey  []byte      // set in init.go
+	NetAlerts    chan string = make(chan string, 1)
 )
 
 func (c *OneConnection) HandleAlert(b []byte) {

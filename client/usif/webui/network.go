@@ -1,16 +1,15 @@
 package webui
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/client/network"
+	"github.com/wchh/gocoin/lib/btc"
+	"net/http"
 	"sort"
 	"strings"
-	"net/http"
-	"encoding/json"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/client/common"
-	"github.com/piotrnar/gocoin/client/network"
 )
-
 
 func p_net(w http.ResponseWriter, r *http.Request) {
 	if !ipchecker(r) {
@@ -30,20 +29,19 @@ func p_net(w http.ResponseWriter, r *http.Request) {
 	write_html_tail(w)
 }
 
-
 type one_net_con struct {
-	Id uint32
-	Incomming bool
-	PeerIp string
-	Ping int
-	LastBtsRcvd uint32
-	LastCmdRcvd string
-	LastBtsSent uint32
-	LastCmdSent string
+	Id                       uint32
+	Incomming                bool
+	PeerIp                   string
+	Ping                     int
+	LastBtsRcvd              uint32
+	LastCmdRcvd              string
+	LastBtsSent              uint32
+	LastCmdSent              string
 	BytesReceived, BytesSent uint64
-	Node network.NetworkNodeStruct
-	SendBufLen int
-	BlksInProgress int
+	Node                     network.NetworkNodeStruct
+	SendBufLen               int
+	BlksInProgress           int
 }
 
 func json_netcon(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +94,6 @@ func json_netcon(w http.ResponseWriter, r *http.Request) {
 
 }
 
-
 func raw_net(w http.ResponseWriter, r *http.Request) {
 	if !ipchecker(r) {
 		return
@@ -108,7 +105,7 @@ func raw_net(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	if len(r.Form["id"])==0 {
+	if len(r.Form["id"]) == 0 {
 		fmt.Println("No id given")
 		return
 	}
@@ -121,28 +118,27 @@ func raw_net(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
 func json_bwidth(w http.ResponseWriter, r *http.Request) {
 	if !ipchecker(r) {
 		return
 	}
 
 	type one_ext_ip struct {
-		Ip string
+		Ip               string
 		Count, Timestamp uint
 	}
 
 	var out struct {
 		Open_conns_total int
-		Open_conns_out uint32
-		Open_conns_in uint32
-		Dl_speed_now uint64
-		Dl_speed_max uint
-		Dl_total uint64
-		Ul_speed_now uint64
-		Ul_speed_max uint
-		Ul_total uint64
-		ExternalIP []one_ext_ip
+		Open_conns_out   uint32
+		Open_conns_in    uint32
+		Dl_speed_now     uint64
+		Dl_speed_max     uint
+		Dl_total         uint64
+		Ul_speed_now     uint64
+		Ul_speed_max     uint
+		Ul_total         uint64
+		ExternalIP       []one_ext_ip
 	}
 
 	common.LockBw()
@@ -165,8 +161,8 @@ func json_bwidth(w http.ResponseWriter, r *http.Request) {
 	network.ExternalIpMutex.Lock()
 	for ip, rec := range network.ExternalIp4 {
 		out.ExternalIP = append(out.ExternalIP, one_ext_ip{
-			Ip : fmt.Sprintf("%d.%d.%d.%d", byte(ip>>24), byte(ip>>16), byte(ip>>8), byte(ip)),
-			Count:rec[0], Timestamp:rec[1]})
+			Ip:    fmt.Sprintf("%d.%d.%d.%d", byte(ip>>24), byte(ip>>16), byte(ip>>8), byte(ip)),
+			Count: rec[0], Timestamp: rec[1]})
 	}
 	network.ExternalIpMutex.Unlock()
 

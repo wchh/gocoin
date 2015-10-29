@@ -1,17 +1,16 @@
 package chain
 
 import (
-	"fmt"
 	"errors"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/script"
-	"github.com/piotrnar/gocoin/lib/others/sys"
+	"fmt"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/others/sys"
+	"github.com/wchh/gocoin/lib/script"
 )
 
 // TrustedTxChecker is meant to speed up verifying transactions that had
 // been verified already by the client while being taken to its memory pool
 var TrustedTxChecker func(*btc.Uint256) bool
-
 
 func (ch *Chain) ProcessBlockTransactions(bl *btc.Block, height, lknown uint32) (changes *BlockChanges, e error) {
 	changes = new(BlockChanges)
@@ -22,13 +21,12 @@ func (ch *Chain) ProcessBlockTransactions(bl *btc.Block, height, lknown uint32) 
 	return
 }
 
-
 // This function either appends a new block at the end of the existing chain
 // in which case it also applies all the transactions to the unspent database.
 // If the block does is not the heighest, it is added to the chain, but maked
 // as an orphan - its transaction will be verified only if the chain would swap
 // to its branch later on.
-func (ch *Chain)AcceptBlock(bl *btc.Block) (e error) {
+func (ch *Chain) AcceptBlock(bl *btc.Block) (e error) {
 
 	prevblk, ok := ch.BlockIndex[btc.NewUint256(bl.ParentHash()).BIdx()]
 	if !ok {
@@ -50,7 +48,7 @@ func (ch *Chain)AcceptBlock(bl *btc.Block) (e error) {
 	ch.BlockIndex[cur.BlockHash.BIdx()] = cur
 	ch.BlockIndexAccess.Unlock()
 
-	if ch.BlockTreeEnd==prevblk {
+	if ch.BlockTreeEnd == prevblk {
 		// The head of out chain - apply the transactions
 		var changes *BlockChanges
 		changes, e = ch.ProcessBlockTransactions(bl, cur.Height, bl.LastKnownHeight)
@@ -88,18 +86,17 @@ func (ch *Chain)AcceptBlock(bl *btc.Block) (e error) {
 	return
 }
 
-
 // This isusually the most time consuming process when applying a new block
-func (ch *Chain)commitTxs(bl *btc.Block, changes *BlockChanges) (e error) {
+func (ch *Chain) commitTxs(bl *btc.Block, changes *BlockChanges) (e error) {
 	sumblockin := btc.GetBlockReward(changes.Height)
 	var txoutsum, txinsum, sumblockout uint64
 
 	if int(changes.Height)+UnwindBufferMaxHistory >= int(changes.LastKnownHeight) {
-		changes.UndoData = make(map[[32]byte] *QdbRec)
+		changes.UndoData = make(map[[32]byte]*QdbRec)
 	}
 
 	// Add each tx outs from the current block to the temporary pool
-	blUnsp := make(map[[32]byte] []*btc.TxOut, 4*len(bl.Txs))
+	blUnsp := make(map[[32]byte][]*btc.TxOut, 4*len(bl.Txs))
 	for i := range bl.Txs {
 		outs := make([]*btc.TxOut, len(bl.Txs[i].TxOut))
 		copy(outs, bl.Txs[i].TxOut)
@@ -113,19 +110,19 @@ func (ch *Chain)commitTxs(bl *btc.Block, changes *BlockChanges) (e error) {
 		txoutsum, txinsum = 0, 0
 
 		// Check each tx for a valid input, except from the first one
-		if i>0 {
+		if i > 0 {
 			tx_trusted := bl.Trusted
-			if !tx_trusted && TrustedTxChecker!=nil && TrustedTxChecker(bl.Txs[i].Hash) {
+			if !tx_trusted && TrustedTxChecker != nil && TrustedTxChecker(bl.Txs[i].Hash) {
 				tx_trusted = true
 			}
 
 			scripts_ok := true
 
-			for j:=0; j<sys.UseThreads; j++ {
+			for j := 0; j < sys.UseThreads; j++ {
 				done <- true
 			}
 
-			for j:=0; j<len(bl.Txs[i].TxIn) /*&& e==nil*/; j++ {
+			for j := 0; j < len(bl.Txs[i].TxIn); /*&& e==nil*/ j++ {
 				inp := &bl.Txs[i].TxIn[j].Input
 				spendrec, waspent := changes.DeledTxs[inp.Hash]
 				if waspent && spendrec[inp.Vout] {
@@ -134,14 +131,14 @@ func (ch *Chain)commitTxs(bl *btc.Block, changes *BlockChanges) (e error) {
 					break
 				}
 				tout := ch.PickUnspent(inp)
-				if tout==nil {
+				if tout == nil {
 					t, ok := blUnsp[inp.Hash]
 					if !ok {
 						e = errors.New("Unknown input TxID: " + btc.NewUint256(inp.Hash[:]).String())
 						break
 					}
 
-					if inp.Vout>=uint32(len(t)) {
+					if inp.Vout >= uint32(len(t)) {
 						println("Vout too big", len(t), inp.String())
 						e = errors.New("Vout too big")
 						break
@@ -161,7 +158,7 @@ func (ch *Chain)commitTxs(bl *btc.Block, changes *BlockChanges) (e error) {
 					tout = t[inp.Vout]
 					t[inp.Vout] = nil // and now mark it as spent:
 				} else {
-					if tout.WasCoinbase && changes.Height - tout.BlockHeight < COINBASE_MATURITY {
+					if tout.WasCoinbase && changes.Height-tout.BlockHeight < COINBASE_MATURITY {
 						e = errors.New("Trying to spend prematured coinbase: " + btc.NewUint256(inp.Hash[:]).String())
 						break
 					}
@@ -200,7 +197,7 @@ func (ch *Chain)commitTxs(bl *btc.Block, changes *BlockChanges) (e error) {
 				if tx_trusted {
 					done <- true
 				} else {
-					go func (sig []byte, prv []byte, i int, tx *btc.Tx) {
+					go func(sig []byte, prv []byte, i int, tx *btc.Tx) {
 						done <- script.VerifyTxScript(sig, prv, i, tx, bl.VerifyFlags)
 					}(bl.Txs[i].TxIn[j].ScriptSig, tout.Pk_script, j, bl.Txs[i])
 				}
@@ -209,10 +206,10 @@ func (ch *Chain)commitTxs(bl *btc.Block, changes *BlockChanges) (e error) {
 			}
 
 			if scripts_ok {
-				scripts_ok = <- done
+				scripts_ok = <-done
 			}
-			for j:=1; j<sys.UseThreads; j++ {
-				if !(<- done) {
+			for j := 1; j < sys.UseThreads; j++ {
+				if !(<-done) {
 					println("VerifyScript error 2")
 					scripts_ok = false
 				}
@@ -227,7 +224,7 @@ func (ch *Chain)commitTxs(bl *btc.Block, changes *BlockChanges) (e error) {
 		} else {
 			// For coinbase tx we need to check (like satoshi) whether the script size is between 2 and 100 bytes
 			// (Previously we made sure in CheckBlock() that this was a coinbase type tx)
-			if len(bl.Txs[0].TxIn[0].ScriptSig)<2 || len(bl.Txs[0].TxIn[0].ScriptSig)>100 {
+			if len(bl.Txs[0].TxIn[0].ScriptSig) < 2 || len(bl.Txs[0].TxIn[0].ScriptSig) > 100 {
 				return errors.New(fmt.Sprint("Coinbase script has a wrong length", len(bl.Txs[0].TxIn[0].ScriptSig)))
 			}
 		}
@@ -241,7 +238,7 @@ func (ch *Chain)commitTxs(bl *btc.Block, changes *BlockChanges) (e error) {
 		if e != nil {
 			return // If any input fails, do not continue
 		}
-		if i>0 && txoutsum > txinsum {
+		if i > 0 && txoutsum > txinsum {
 			return errors.New(fmt.Sprintf("More spent (%.8f) than at the input (%.8f) in TX %s",
 				float64(txoutsum)/1e8, float64(txinsum)/1e8, bl.Txs[i].Hash.String()))
 		}
@@ -254,18 +251,18 @@ func (ch *Chain)commitTxs(bl *btc.Block, changes *BlockChanges) (e error) {
 	var rec *QdbRec
 	for k, v := range blUnsp {
 		for i := range v {
-			if v[i]!=nil {
-				if rec==nil {
+			if v[i] != nil {
+				if rec == nil {
 					rec = new(QdbRec)
 					rec.TxID = k
 					rec.Coinbase = v[i].WasCoinbase
 					rec.InBlock = changes.Height
 					rec.Outs = make([]*QdbTxOut, len(v))
 				}
-				rec.Outs[i] = &QdbTxOut{Value:v[i].Value, PKScr:v[i].Pk_script}
+				rec.Outs[i] = &QdbTxOut{Value: v[i].Value, PKScr: v[i].Pk_script}
 			}
 		}
-		if rec!=nil {
+		if rec != nil {
 			changes.AddList = append(changes.AddList, rec)
 			rec = nil
 		}
@@ -274,15 +271,14 @@ func (ch *Chain)commitTxs(bl *btc.Block, changes *BlockChanges) (e error) {
 	return nil
 }
 
-
 // Check transactions for consistency and finality. Return true if OK
 func CheckTransactions(txs []*btc.Tx, height, btime uint32) bool {
 	ok := true
 	done := make(chan bool, sys.UseThreads)
-	for i:=0; i<sys.UseThreads; i++ {
+	for i := 0; i < sys.UseThreads; i++ {
 		done <- true
 	}
-	for i:= range txs {
+	for i := range txs {
 		go func(tx *btc.Tx) {
 			if tx.CheckTransaction() != nil {
 				done <- false // check transaction failed
@@ -295,8 +291,8 @@ func CheckTransactions(txs []*btc.Tx, height, btime uint32) bool {
 			ok = false
 		}
 	}
-	for j:=1; j<sys.UseThreads; j++ {
-		if !(<- done) {
+	for j := 1; j < sys.UseThreads; j++ {
+		if !(<-done) {
 			ok = false
 		}
 	}

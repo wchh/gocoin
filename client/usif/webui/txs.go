@@ -1,18 +1,18 @@
 package webui
 
 import (
-	"fmt"
-	"time"
-	"sync"
-	"strings"
-	"net/http"
-	"io/ioutil"
 	"encoding/hex"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/script"
-	"github.com/piotrnar/gocoin/client/common"
-	"github.com/piotrnar/gocoin/client/network"
-	"github.com/piotrnar/gocoin/client/usif"
+	"fmt"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/client/network"
+	"github.com/wchh/gocoin/client/usif"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/script"
+	"io/ioutil"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
 )
 
 func p_txs(w http.ResponseWriter, r *http.Request) {
@@ -29,13 +29,13 @@ func p_txs(w http.ResponseWriter, r *http.Request) {
 	fil, _, _ := r.FormFile("txfile")
 	if fil != nil {
 		tx2in, _ = ioutil.ReadAll(fil)
-	} else if len(r.Form["rawtx"])==1 {
+	} else if len(r.Form["rawtx"]) == 1 {
 		tx2in, _ = hex.DecodeString(r.Form["rawtx"][0])
 	}
 
-	if len(tx2in)>0 {
+	if len(tx2in) > 0 {
 		wg.Add(1)
-		req := &usif.OneUiReq{Param:string(tx2in)}
+		req := &usif.OneUiReq{Param: string(tx2in)}
 		req.Done.Add(1)
 		req.Handler = func(dat string) {
 			txloadresult = usif.LoadRawTx([]byte(dat))
@@ -47,7 +47,7 @@ func p_txs(w http.ResponseWriter, r *http.Request) {
 	s := load_template("txs.html")
 
 	wg.Wait()
-	if txloadresult!="" {
+	if txloadresult != "" {
 		ld := load_template("txs_load.html")
 		ld = strings.Replace(ld, "{TX_RAW_DATA}", txloadresult, 1)
 		s = strings.Replace(s, "<!--TX_LOAD-->", ld, 1)
@@ -69,7 +69,6 @@ func p_txs(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(s))
 	write_html_tail(w)
 }
-
 
 func output_tx_xml(w http.ResponseWriter, id string) {
 	txid := btc.NewUint256FromString(id)
@@ -130,30 +129,29 @@ func output_tx_xml(w http.ResponseWriter, id string) {
 	w.Write([]byte("</tx>"))
 }
 
-
 func xml_txs2s(w http.ResponseWriter, r *http.Request) {
 	if !ipchecker(r) {
 		return
 	}
 
 	if checksid(r) {
-		if len(r.Form["del"])>0 {
+		if len(r.Form["del"]) > 0 {
 			tid := btc.NewUint256FromString(r.Form["del"][0])
-			if tid!=nil {
+			if tid != nil {
 				network.TxMutex.Lock()
 				delete(network.TransactionsToSend, tid.BIdx())
 				network.TxMutex.Unlock()
 			}
 		}
 
-		if len(r.Form["send"])>0 {
+		if len(r.Form["send"]) > 0 {
 			tid := btc.NewUint256FromString(r.Form["send"][0])
-			if tid!=nil {
+			if tid != nil {
 				network.TxMutex.Lock()
 				if ptx, ok := network.TransactionsToSend[tid.BIdx()]; ok {
 					network.TxMutex.Unlock()
 					cnt := network.NetRouteInv(1, tid, nil)
-					if cnt==0 {
+					if cnt == 0 {
 						usif.SendInvToRandomPeer(1, tid)
 					} else {
 						ptx.Invsentcnt += cnt
@@ -164,9 +162,9 @@ func xml_txs2s(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if len(r.Form["sendone"])>0 {
+		if len(r.Form["sendone"]) > 0 {
 			tid := btc.NewUint256FromString(r.Form["sendone"][0])
-			if tid!=nil {
+			if tid != nil {
 				network.TxMutex.Lock()
 				if ptx, ok := network.TransactionsToSend[tid.BIdx()]; ok {
 					network.TxMutex.Unlock()
@@ -182,7 +180,7 @@ func xml_txs2s(w http.ResponseWriter, r *http.Request) {
 
 	w.Header()["Content-Type"] = []string{"text/xml"}
 
-	if len(r.Form["id"])>0 {
+	if len(r.Form["id"]) > 0 {
 		output_tx_xml(w, r.Form["id"][0])
 		return
 	}
@@ -190,7 +188,7 @@ func xml_txs2s(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("<txpool>"))
 	network.TxMutex.Lock()
 	for _, v := range network.TransactionsToSend {
-		if len(r.Form["ownonly"])>0 && v.Own==0 {
+		if len(r.Form["ownonly"]) > 0 && v.Own == 0 {
 			continue
 		}
 		w.Write([]byte("<tx>"))
@@ -211,7 +209,6 @@ func xml_txs2s(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("</txpool>"))
 }
 
-
 func xml_txsre(w http.ResponseWriter, r *http.Request) {
 	if !ipchecker(r) {
 		return
@@ -231,7 +228,6 @@ func xml_txsre(w http.ResponseWriter, r *http.Request) {
 	network.TxMutex.Unlock()
 	w.Write([]byte("</txbanned>"))
 }
-
 
 func xml_txw4i(w http.ResponseWriter, r *http.Request) {
 	if !ipchecker(r) {
@@ -261,7 +257,6 @@ func xml_txw4i(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("</pending>"))
 }
 
-
 func raw_tx(w http.ResponseWriter, r *http.Request) {
 	if !ipchecker(r) {
 		return
@@ -276,7 +271,7 @@ func raw_tx(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	if len(r.Form["id"])==0 {
+	if len(r.Form["id"]) == 0 {
 		fmt.Println("No id given")
 		return
 	}
@@ -290,7 +285,6 @@ func raw_tx(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Not found")
 	}
 }
-
 
 func json_txstat(w http.ResponseWriter, r *http.Request) {
 	if !ipchecker(r) {

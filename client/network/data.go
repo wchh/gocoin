@@ -1,17 +1,16 @@
 package network
 
 import (
-	"fmt"
-	"time"
 	"bytes"
+	"fmt"
 	"sync/atomic"
+	"time"
 	//"encoding/hex"
 	"encoding/binary"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/chain"
-	"github.com/piotrnar/gocoin/client/common"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/chain"
 )
-
 
 func (c *OneConnection) ProcessGetData(pl []byte) {
 	var notfound []byte
@@ -23,19 +22,19 @@ func (c *OneConnection) ProcessGetData(pl []byte) {
 		println("ProcessGetData:", e.Error(), c.PeerAddr.Ip())
 		return
 	}
-	for i:=0; i<int(cnt); i++ {
+	for i := 0; i < int(cnt); i++ {
 		var typ uint32
 		var h [36]byte
 
 		n, _ := b.Read(h[:])
-		if n!=36 {
+		if n != 36 {
 			println("ProcessGetData: pl too short", c.PeerAddr.Ip())
 			return
 		}
 
 		typ = binary.LittleEndian.Uint32(h[:4])
 
-		common.CountSafe(fmt.Sprint("GetdataType",typ))
+		common.CountSafe(fmt.Sprint("GetdataType", typ))
 		if typ == 2 {
 			uh := btc.NewUint256(h[4:])
 			bl, _, er := common.BlockChain.Blocks.BlockGet(uh)
@@ -48,7 +47,7 @@ func (c *OneConnection) ProcessGetData(pl []byte) {
 			// transaction
 			uh := btc.NewUint256(h[4:])
 			TxMutex.Lock()
-			if tx, ok := TransactionsToSend[uh.BIdx()]; ok && tx.Blocked==0 {
+			if tx, ok := TransactionsToSend[uh.BIdx()]; ok && tx.Blocked == 0 {
 				tx.SentCnt++
 				tx.Lastsent = time.Now()
 				TxMutex.Unlock()
@@ -58,23 +57,22 @@ func (c *OneConnection) ProcessGetData(pl []byte) {
 				notfound = append(notfound, h[:]...)
 			}
 		} else {
-			if common.DebugLevel>0 {
+			if common.DebugLevel > 0 {
 				println("getdata for type", typ, "not supported yet")
 			}
-			if typ>0 && typ<=3 /*3 is a filtered block(we dont support it)*/ {
+			if typ > 0 && typ <= 3 /*3 is a filtered block(we dont support it)*/ {
 				notfound = append(notfound, h[:]...)
 			}
 		}
 	}
 
-	if len(notfound)>0 {
+	if len(notfound) > 0 {
 		buf := new(bytes.Buffer)
 		btc.WriteVlen(buf, uint64(len(notfound)/36))
 		buf.Write(notfound)
 		c.SendRawMsg("notfound", buf.Bytes())
 	}
 }
-
 
 // This function is called from a net conn thread
 func netBlockReceived(conn *OneConnection, b []byte) {
@@ -93,7 +91,7 @@ func netBlockReceived(conn *OneConnection, b []byte) {
 		common.CountSafe("BlockSameRcvd")
 		return
 	}
-	orb := &OneReceivedBlock{Time:time.Now()}
+	orb := &OneReceivedBlock{Time: time.Now()}
 	if bip, ok := conn.GetBlockInProgress[idx]; ok {
 		orb.TmDownload = orb.Time.Sub(bip.start)
 		conn.Mutex.Lock()
@@ -105,9 +103,8 @@ func netBlockReceived(conn *OneConnection, b []byte) {
 	ReceivedBlocks[idx] = orb
 	MutexRcv.Unlock()
 
-	NetBlocks <- &BlockRcvd{Conn:conn, Block:bl}
+	NetBlocks <- &BlockRcvd{Conn: conn, Block: bl}
 }
-
 
 // It goes through all the netowrk connections and checks
 // ... how many of them have a given block download in progress
@@ -138,7 +135,7 @@ func blockWanted(h []byte) (yes bool) {
 	_, ok := ReceivedBlocks[idx]
 	MutexRcv.Unlock()
 	if !ok {
-		if atomic.LoadUint32(&common.CFG.Net.MaxBlockAtOnce)==0 || !blocksLimitReached(idx) {
+		if atomic.LoadUint32(&common.CFG.Net.MaxBlockAtOnce) == 0 || !blocksLimitReached(idx) {
 			yes = true
 			common.CountSafe("BlockWanted")
 		} else {
@@ -171,10 +168,10 @@ func parseLocatorsPayload(pl []byte) (h2get []*btc.Uint256, hashstop *btc.Uint25
 	}
 
 	// block locator hashes
-	if cnt>0 {
+	if cnt > 0 {
 		h2get = make([]*btc.Uint256, cnt)
-		for i:=0; i<int(cnt); i++ {
-			if _, er = b.Read(h[:]); er!=nil {
+		for i := 0; i < int(cnt); i++ {
+			if _, er = b.Read(h[:]); er != nil {
 				return
 			}
 			h2get[i] = btc.NewUint256(h[:])
@@ -182,7 +179,7 @@ func parseLocatorsPayload(pl []byte) (h2get []*btc.Uint256, hashstop *btc.Uint25
 	}
 
 	// hash_stop
-	if _, er = b.Read(h[:]); er!=nil {
+	if _, er = b.Read(h[:]); er != nil {
 		return
 	}
 	hashstop = btc.NewUint256(h[:])
@@ -190,12 +187,11 @@ func parseLocatorsPayload(pl []byte) (h2get []*btc.Uint256, hashstop *btc.Uint25
 	return
 }
 
-
 // Handle getheaders protocol command
 // https://en.bitcoin.it/wiki/Protocol_specification#getheaders
 func (c *OneConnection) GetHeaders(pl []byte) {
 	h2get, hashstop, e := parseLocatorsPayload(pl)
-	if e != nil || hashstop==nil {
+	if e != nil || hashstop == nil {
 		println("GetHeaders: error parsing payload from", c.PeerAddr.Ip())
 		c.DoS("BadGetHdrs")
 		return
@@ -213,7 +209,7 @@ func (c *OneConnection) GetHeaders(pl []byte) {
 	if len(h2get) > 0 {
 		for i := range h2get {
 			if bl, ok := common.BlockChain.BlockIndex[h2get[i].BIdx()]; ok {
-				if best_block==nil || bl.Height > best_block.Height {
+				if best_block == nil || bl.Height > best_block.Height {
 					//println(" ... bbl", i, bl.Height, bl.BlockHash.String())
 					best_block = bl
 				}
@@ -223,7 +219,7 @@ func (c *OneConnection) GetHeaders(pl []byte) {
 		best_block = common.BlockChain.BlockIndex[hashstop.BIdx()]
 	}
 
-	if best_block==nil {
+	if best_block == nil {
 		println("GetHeaders: best_block not found")
 		common.BlockChain.BlockIndexAccess.Unlock()
 		common.CountSafe("GetHeadersBadBlock")
@@ -247,10 +243,10 @@ func (c *OneConnection) GetHeaders(pl []byte) {
 			}
 			fmt.Println("GetHeaders panic recovered:", err.Error())
 			fmt.Println("Cnt:", cnt, "  len(h2get):", len(h2get))
-			if best_block!=nil {
+			if best_block != nil {
 				fmt.Println("BestBlock:", best_block.Height, best_block.BlockHash.String())
 			}
-			if last_block!=nil {
+			if last_block != nil {
 				fmt.Println("LastBlock:", last_block.Height, last_block.BlockHash.String())
 			}
 		}
@@ -261,9 +257,9 @@ func (c *OneConnection) GetHeaders(pl []byte) {
 		c.SendRawMsg("headers", out.Bytes())
 	}()
 
-	for cnt<2000 {
+	for cnt < 2000 {
 		best_block = best_block.FindPathTo(last_block)
-		if best_block==nil {
+		if best_block == nil {
 			//println("FindPathTo failed", last_block.BlockHash.String(), cnt)
 			//println("resp:", hex.EncodeToString(resp))
 			break

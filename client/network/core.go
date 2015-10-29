@@ -11,10 +11,10 @@ import (
 	"sync/atomic"
 	"crypto/rand"
 	"encoding/binary"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/chain"
-	"github.com/piotrnar/gocoin/client/common"
-	"github.com/piotrnar/gocoin/lib/others/peersdb"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/chain"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/lib/others/peersdb"
 )
 
 

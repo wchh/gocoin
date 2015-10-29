@@ -1,23 +1,22 @@
 package main
 
 import (
-	"os"
-	"fmt"
 	"bufio"
+	"encoding/hex"
+	"fmt"
+	"github.com/wchh/gocoin/lib/btc"
+	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
-	"io/ioutil"
-	"encoding/hex"
-	"github.com/piotrnar/gocoin/lib/btc"
 )
-
 
 type unspRec struct {
 	btc.TxPrevOut
-	label string
-	key *btc.PrivateAddr
+	label   string
+	key     *btc.PrivateAddr
 	stealth bool
-	spent bool
+	spent   bool
 }
 
 var (
@@ -30,12 +29,12 @@ func (u *unspRec) String() string {
 }
 
 func NewUnspRec(l []byte) (uns *unspRec) {
-	if l[64]!='-' {
+	if l[64] != '-' {
 		return nil
 	}
 
 	txid := btc.NewUint256FromString(string(l[:64]))
-	if txid==nil {
+	if txid == nil {
 		return nil
 	}
 
@@ -48,14 +47,14 @@ func NewUnspRec(l []byte) (uns *unspRec) {
 	uns = new(unspRec)
 	uns.TxPrevOut.Hash = txid.Hash
 	uns.TxPrevOut.Vout = uint32(vout)
-	if len(rst)>1 {
+	if len(rst) > 1 {
 		uns.label = rst[1]
 	}
 
 	if first_determ_idx < len(keys) {
 		str := string(l)
-		if sti:=strings.Index(str, "_StealthC:"); sti!=-1 {
-			c, e := hex.DecodeString(str[sti+10:sti+10+64])
+		if sti := strings.Index(str, "_StealthC:"); sti != -1 {
+			c, e := hex.DecodeString(str[sti+10 : sti+10+64])
 			if e != nil {
 				fmt.Println("ERROR at stealth", txid.String(), vout, e.Error())
 			} else {
@@ -73,21 +72,20 @@ func NewUnspRec(l []byte) (uns *unspRec) {
 	return
 }
 
-
 // load the content of the "balance/" folder
 func load_balance() error {
 	f, e := os.Open("balance/unspent.txt")
-	if e!=nil {
+	if e != nil {
 		return e
 	}
 	rd := bufio.NewReader(f)
 	for {
 		l, _, e := rd.ReadLine()
-		if len(l)==0 && e!=nil {
+		if len(l) == 0 && e != nil {
 			break
 		}
-		if uns:=NewUnspRec(l); uns!=nil {
-			if uns.key==nil {
+		if uns := NewUnspRec(l); uns != nil {
+			if uns.key == nil {
 				uns.key = pkscr_to_key(getUO(&uns.TxPrevOut).Pk_script)
 			}
 			unspentOuts = append(unspentOuts, uns)
@@ -99,7 +97,6 @@ func load_balance() error {
 	return nil
 }
 
-
 func show_balance() {
 	var totBtc, msBtc, knownInputs, unknownInputs, multisigInputs uint64
 	for i := range unspentOuts {
@@ -109,7 +106,7 @@ func show_balance() {
 			multisigInputs++
 		} else {
 			// Sum up all the balance and check if we have private key for this input
-			if unspentOuts[i].key!=nil {
+			if unspentOuts[i].key != nil {
 				totBtc += uo.Value
 				knownInputs++
 			} else {
@@ -121,14 +118,13 @@ func show_balance() {
 		}
 	}
 	fmt.Printf("You have %.8f BTC in %d P2KH outputs\n", float64(totBtc)/1e8, knownInputs)
-	if multisigInputs>0 {
+	if multisigInputs > 0 {
 		fmt.Printf("There is %.8f BTC in %d multisig outputs\n", float64(msBtc)/1e8, multisigInputs)
 	}
 	if unknownInputs > 0 {
 		fmt.Println("WARNING:", unknownInputs, "unspendable inputs (-v to print them).")
 	}
 }
-
 
 // apply the chnages to the balance folder
 func apply_to_balance(tx *btc.Tx) {
@@ -139,7 +135,7 @@ func apply_to_balance(tx *btc.Tx) {
 
 		fmt.Println("Adding", len(tx.TxOut), "new output(s) to the balance/ folder...")
 		for out := range tx.TxOut {
-			if k:=pkscr_to_key(tx.TxOut[out].Pk_script); k!=nil {
+			if k := pkscr_to_key(tx.TxOut[out].Pk_script); k != nil {
 				uns := new(unspRec)
 				uns.key = k
 				uns.TxPrevOut.Hash = tx.Hash.Hash
@@ -150,7 +146,7 @@ func apply_to_balance(tx *btc.Tx) {
 			}
 		}
 
-		for j:= range unspentOuts {
+		for j := range unspentOuts {
 			if !unspentOuts[j].spent {
 				fmt.Fprintln(f, unspentOuts[j].String())
 			}

@@ -1,18 +1,17 @@
 package main
 
 import (
-	"fmt"
-	"flag"
 	"crypto/rand"
 	"encoding/hex"
-	"github.com/piotrnar/gocoin/lib/btc"
+	"flag"
+	"fmt"
+	"github.com/wchh/gocoin/lib/btc"
 )
 
 var (
 	scankey *string = flag.String("scankey", "", "Generate a new stealth using this public scan-key")
-	prefix *uint = flag.Uint("prefix", 0, "Stealth prefix length in bits (maximum 24)")
+	prefix  *uint   = flag.Uint("prefix", 0, "Stealth prefix length in bits (maximum 24)")
 )
-
 
 // Generate a new stealth address
 func new_stealth_address(prv_key []byte) {
@@ -21,13 +20,13 @@ func new_stealth_address(prv_key []byte) {
 		println(er.Error())
 		cleanExit(1)
 	}
-	if len(sk)!=33 || sk[0]!=2 && sk[0]!=3 {
+	if len(sk) != 33 || sk[0] != 2 && sk[0] != 3 {
 		println("scankey must be a compressed public key (33 bytes long)")
 		cleanExit(1)
 	}
 
-	if *prefix>16 {
-		if *prefix>24 {
+	if *prefix > 16 {
+		if *prefix > 24 {
 			fmt.Println("The stealth prefix cannot be bigger than 24", *prefix)
 			cleanExit(1)
 		}

@@ -23,7 +23,7 @@ Use mingw(64) and msys.
  * http://sourceforge.net/projects/mingw-w64/files/External%20binary%20packages%20(Win64%20hosted)/Binaries%20(64-bit)/
 
 2. Download forked secp256k1:
- * https://github.com/piotrnar/secp256k1
+ * https://github.com/wchh/secp256k1
 
 3. Create folder "secp256k1/gmp" and place there "libgmp.a" and "gmp.h"
 

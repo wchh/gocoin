@@ -2,13 +2,13 @@ package webui
 
 import (
 	"fmt"
-	"time"
-	"strings"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/client/network"
+	"github.com/wchh/gocoin/lib/btc"
 	"net/http"
+	"strings"
 	"sync/atomic"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/client/common"
-	"github.com/piotrnar/gocoin/client/network"
+	"time"
 )
 
 func p_blocks(w http.ResponseWriter, r *http.Request) {
@@ -23,13 +23,13 @@ func p_blocks(w http.ResponseWriter, r *http.Request) {
 	end := common.Last.Block
 	common.Last.Mutex.Unlock()
 
-	for cnt:=uint32(0); end!=nil && cnt<atomic.LoadUint32(&common.CFG.WebUI.ShowBlocks); cnt++ {
+	for cnt := uint32(0); end != nil && cnt < atomic.LoadUint32(&common.CFG.WebUI.ShowBlocks); cnt++ {
 		bl, _, e := common.BlockChain.Blocks.BlockGet(end.BlockHash)
 		if e != nil {
 			return
 		}
 		block, e := btc.NewBlock(bl)
-		if e!=nil {
+		if e != nil {
 			return
 		}
 		cbasetx, _ := btc.NewTx(bl[block.TxOffset:])
@@ -48,27 +48,26 @@ func p_blocks(w http.ResponseWriter, r *http.Request) {
 		s = strings.Replace(s, "<!--BLOCK_VERSION-->", fmt.Sprint(block.Version()), 1)
 		s = strings.Replace(s, "{BLOCK_REWARD}", fmt.Sprintf("%.2f", float64(rew)/1e8), 1)
 		mi, _ := common.TxMiner(cbasetx)
-		if len(mi)>10 {
+		if len(mi) > 10 {
 			mi = mi[:10]
 		}
 		s = strings.Replace(s, "{BLOCK_MINER}", mi, 1)
-
 
 		network.MutexRcv.Lock()
 		rb := network.ReceivedBlocks[end.BlockHash.BIdx()]
 		network.MutexRcv.Unlock()
 
-		if rb.TmDownload!=0 {
+		if rb.TmDownload != 0 {
 			s = strings.Replace(s, "{TIME_TO_DOWNLOAD}", fmt.Sprint(int(rb.TmDownload/time.Millisecond)), 1)
 		} else {
 			s = strings.Replace(s, "{TIME_TO_DOWNLOAD}", "", 1)
 		}
-		if rb.TmAccept!=0 {
+		if rb.TmAccept != 0 {
 			s = strings.Replace(s, "{TIME_TO_ACCEPT}", fmt.Sprint(int(rb.TmAccept/time.Millisecond)), 1)
 		} else {
 			s = strings.Replace(s, "{TIME_TO_ACCEPT}", "", 1)
 		}
-		if rb.Cnt!=0 {
+		if rb.Cnt != 0 {
 			s = strings.Replace(s, "{WASTED_BLOCKS}", fmt.Sprint(rb.Cnt), 1)
 		} else {
 			s = strings.Replace(s, "{WASTED_BLOCKS}", "", 1)

@@ -7,7 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/piotrnar/gocoin/lib/secp256k1"
+	"github.com/wchh/gocoin/lib/secp256k1"
 	"golang.org/x/crypto/ripemd160"
 )
 

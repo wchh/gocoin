@@ -95,7 +95,7 @@ In order to do this, simply execute the following commands:
 ## Gocoin
 Use `go get` to fetch and install Gocoin sources for you:
 
-	go get github.com/piotrnar/gocoin
+	go get github.com/wchh/gocoin
 
 
 # Building
@@ -106,7 +106,7 @@ Go to the `client/` folder and execute `go build` there.
 
 Not having a compatible `gcc` installed in your system, you will likely see an error like this:
 
-	# github.com/piotrnar/gocoin/lib/qdb
+	# github.com/wchh/gocoin/lib/qdb
 	exec: "gcc": executable file not found in %PATH%
 
 You can go on without *gcc*, although your running client (and downloader) will then need some more system memory.

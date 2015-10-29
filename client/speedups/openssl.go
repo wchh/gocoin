@@ -10,12 +10,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/piotrnar/gocoin/lib/others/cgo/openssl"
-	"github.com/piotrnar/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/others/cgo/openssl"
 )
 
 func EC_Verify(k, s, h []byte) bool {
-	return openssl.EC_Verify(k, s, h)==1
+	return openssl.EC_Verify(k, s, h) == 1
 }
 
 func init() {

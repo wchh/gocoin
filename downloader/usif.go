@@ -1,24 +1,22 @@
 package main
 
 import (
-	"os"
-	"fmt"
-	"time"
-	"sort"
 	"bufio"
-	"strings"
+	"fmt"
+	"github.com/wchh/gocoin/lib/others/peersdb"
+	"github.com/wchh/gocoin/lib/others/sys"
+	"github.com/wchh/gocoin/lib/qdb"
+	"os"
+	"sort"
 	"strconv"
-	"github.com/piotrnar/gocoin/lib/qdb"
-	"github.com/piotrnar/gocoin/lib/others/sys"
-	"github.com/piotrnar/gocoin/lib/others/peersdb"
+	"strings"
+	"time"
 )
-
 
 func readline() string {
 	li, _, _ := bufio.NewReader(os.Stdin).ReadLine()
 	return string(li)
 }
-
 
 func show_connections() {
 	open_connection_mutex.Lock()
@@ -50,17 +48,14 @@ func show_connections() {
 	}
 }
 
-
 func show_free_mem() {
 	al, sy := sys.MemUsed()
 	fmt.Println("HEAP size", al>>20, "MB,  SysMEM used", sy>>20, "MB")
 }
 
-
 func qdb_stats() {
 	fmt.Print(qdb.GetStats())
 }
-
 
 func usif_prompt() {
 	print("cmd> ")
@@ -73,101 +68,101 @@ func do_usif() {
 		cmd := readline()
 		go func(cmd string) {
 			ll := strings.Split(cmd, " ")
-			if len(ll)>0 {
+			if len(ll) > 0 {
 				switch ll[0] {
-					case "a":
-						fmt.Println(peersdb.PeerDB.Count(), "addressess in the database")
+				case "a":
+					fmt.Println(peersdb.PeerDB.Count(), "addressess in the database")
 
-					case "q":
-						Exit()
-						return
+				case "q":
+					Exit()
+					return
 
-					case "bm":
-						fmt.Println("Trying BlocksMutex")
-						BlocksMutex.Lock()
-						fmt.Println("BlocksMutex locked")
-						BlocksMutex.Unlock()
-						fmt.Println("BlocksMutex unlocked")
+				case "bm":
+					fmt.Println("Trying BlocksMutex")
+					BlocksMutex.Lock()
+					fmt.Println("BlocksMutex locked")
+					BlocksMutex.Unlock()
+					fmt.Println("BlocksMutex unlocked")
 
-					case "b":
-						if TheBlockChain!=nil {
-							fmt.Println(TheBlockChain.Stats())
-						}
+				case "b":
+					if TheBlockChain != nil {
+						fmt.Println(TheBlockChain.Stats())
+					}
 
-					case "db":
-						qdb_stats()
+				case "db":
+					qdb_stats()
 
-					case "n":
-						show_connections()
+				case "n":
+					show_connections()
 
-					case "i":
-						print_stats()
+				case "i":
+					print_stats()
 
-					case "c":
-						print_counters()
+				case "c":
+					print_counters()
 
-					case "pr":
-						show_inprogress()
+				case "pr":
+					show_inprogress()
 
-					case "pe":
-						show_pending()
+				case "pe":
+					show_pending()
 
-					case "d":
-						if len(ll)>1 {
-							n, e := strconv.ParseUint(ll[1], 10, 32)
-							if e==nil {
-								open_connection_mutex.Lock()
-								for _, v := range open_connection_list {
-									if v.id==uint32(n) {
-										fmt.Println("dropping peer id", n, "...")
-										v.setbroken(true)
-									}
+				case "d":
+					if len(ll) > 1 {
+						n, e := strconv.ParseUint(ll[1], 10, 32)
+						if e == nil {
+							open_connection_mutex.Lock()
+							for _, v := range open_connection_list {
+								if v.id == uint32(n) {
+									fmt.Println("dropping peer id", n, "...")
+									v.setbroken(true)
 								}
-								open_connection_mutex.Unlock()
 							}
-						} else {
-							fmt.Println("dropping slowest peer")
-							drop_slowest_peers()
+							open_connection_mutex.Unlock()
 						}
+					} else {
+						fmt.Println("dropping slowest peer")
+						drop_slowest_peers()
+					}
 
-					case "f":
-						show_free_mem()
-						sys.FreeMem()
-						show_free_mem()
-						fmt.Println("To free more memory, quit (q command) and relaunch the downloader")
+				case "f":
+					show_free_mem()
+					sys.FreeMem()
+					show_free_mem()
+					fmt.Println("To free more memory, quit (q command) and relaunch the downloader")
 
-					case "m":
-						show_free_mem()
+				case "m":
+					show_free_mem()
 
-					case "mc":
-						if len(ll)>1 {
-							n, e := strconv.ParseUint(ll[1], 10, 32)
-							if e == nil {
-								MaxNetworkConns = uint(n)
-								fmt.Println("MaxNetworkConns set to", n)
-							}
+				case "mc":
+					if len(ll) > 1 {
+						n, e := strconv.ParseUint(ll[1], 10, 32)
+						if e == nil {
+							MaxNetworkConns = uint(n)
+							fmt.Println("MaxNetworkConns set to", n)
 						}
+					}
 
-					case "h":
-						fallthrough
-					case "?":
-						fmt.Println("Available commands:")
-						fmt.Println(" a - show addressess of the peers")
-						fmt.Println(" b - show blockchin stats")
-						fmt.Println(" q - quit the downloader")
-						fmt.Println(" c - show counters")
-						fmt.Println(" d [conid] - drop one connection")
-						fmt.Println(" db - show database stats")
-						fmt.Println(" f - free memory")
-						fmt.Println(" i - show general info")
-						fmt.Println(" m - show mem heap info")
-						fmt.Println(" mc <CNT> - set maximum number of connections")
-						fmt.Println(" n - show network connections")
-						fmt.Println(" pe - show pending blocks ")
-						fmt.Println(" pr - show blocks in progress")
+				case "h":
+					fallthrough
+				case "?":
+					fmt.Println("Available commands:")
+					fmt.Println(" a - show addressess of the peers")
+					fmt.Println(" b - show blockchin stats")
+					fmt.Println(" q - quit the downloader")
+					fmt.Println(" c - show counters")
+					fmt.Println(" d [conid] - drop one connection")
+					fmt.Println(" db - show database stats")
+					fmt.Println(" f - free memory")
+					fmt.Println(" i - show general info")
+					fmt.Println(" m - show mem heap info")
+					fmt.Println(" mc <CNT> - set maximum number of connections")
+					fmt.Println(" n - show network connections")
+					fmt.Println(" pe - show pending blocks ")
+					fmt.Println(" pr - show blocks in progress")
 
-					default:
-						fmt.Println("Unknown command:", ll[0], " (h or ? - to see help)")
+				default:
+					fmt.Println("Unknown command:", ll[0], " (h or ? - to see help)")
 				}
 			}
 			usif_prompt()

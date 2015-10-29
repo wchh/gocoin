@@ -2,11 +2,10 @@ package ltc
 
 import (
 	"bytes"
-	"github.com/piotrnar/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/btc"
 )
 
 const LTC_ADDR_VERSION = 48
-
 
 // LTC signing uses different seed string
 func HashFromMessage(msg []byte, out []byte) {
@@ -19,7 +18,6 @@ func HashFromMessage(msg []byte, out []byte) {
 	btc.ShaHash(b.Bytes(), out)
 }
 
-
 func AddrVerPubkey(testnet bool) byte {
 	if !testnet {
 		return LTC_ADDR_VERSION
@@ -27,10 +25,9 @@ func AddrVerPubkey(testnet bool) byte {
 	return btc.AddrVerPubkey(testnet)
 }
 
-
 func NewAddrFromPkScript(scr []byte, testnet bool) (ad *btc.BtcAddr) {
 	ad = btc.NewAddrFromPkScript(scr, testnet)
-	if ad!=nil && ad.Version==btc.AddrVerPubkey(false) {
+	if ad != nil && ad.Version == btc.AddrVerPubkey(false) {
 		ad.Version = LTC_ADDR_VERSION
 	}
 	return

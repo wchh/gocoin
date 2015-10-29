@@ -7,7 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/piotrnar/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/btc"
 	"golang.org/x/crypto/ripemd160"
 	"runtime/debug"
 )

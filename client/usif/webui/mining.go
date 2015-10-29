@@ -1,21 +1,21 @@
 package webui
 
 import (
+	"encoding/binary"
 	"fmt"
-	"time"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/lib/btc"
+	"net/http"
+	"regexp"
 	"sort"
 	"strings"
-	"net/http"
-	"encoding/binary"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/client/common"
-	"regexp"
+	"time"
 )
 
 type omv struct {
-	cnt int
-	bts uint64
-	mid int
+	cnt  int
+	bts  uint64
+	mid  int
 	fees uint64
 }
 
@@ -46,7 +46,7 @@ func p_miners(w http.ResponseWriter, r *http.Request) {
 
 	common.ReloadMiners()
 
-	m := make(map[string] omv, 20)
+	m := make(map[string]omv, 20)
 	var om omv
 	cnt := 0
 	common.Last.Mutex.Lock()
@@ -63,7 +63,7 @@ func p_miners(w http.ResponseWriter, r *http.Request) {
 	minerid := common.CFG.Beeps.MinerID
 	common.UnlockCfg()
 
-	next_diff_change := 2016-end.Height%2016
+	next_diff_change := 2016 - end.Height%2016
 
 	block_versions := make(map[uint32]uint)
 
@@ -73,7 +73,7 @@ func p_miners(w http.ResponseWriter, r *http.Request) {
 	bip100x := regexp.MustCompile("/BV{0,1}[0-9]+[M]{0,1}/")
 	//bip100rx := regexp.MustCompile("/B[0-9]+[M]{0,1}/")
 
-	for ; end!=nil; cnt++ {
+	for ; end != nil; cnt++ {
 		if now-int64(end.Timestamp()) > int64(common.CFG.MiningStatHours)*3600 {
 			break
 		}
@@ -89,12 +89,12 @@ func p_miners(w http.ResponseWriter, r *http.Request) {
 		block_versions[binary.LittleEndian.Uint32(bl[0:4])]++
 		diff += btc.GetDifficulty(end.Bits())
 		miner, mid := common.TxMiner(cbasetx)
-		if mid==-1 {
+		if mid == -1 {
 			miner = "<i>" + miner + "</i>"
 		}
 		om = m[miner]
 		om.cnt++
-		om.bts+= uint64(len(bl))
+		om.bts += uint64(len(bl))
 		om.mid = mid
 
 		// Blocks reward
@@ -106,20 +106,19 @@ func p_miners(w http.ResponseWriter, r *http.Request) {
 
 		// bip-100
 		res := bip100x.Find(cbasetx.TxIn[0].ScriptSig)
-		if res!=nil {
+		if res != nil {
 			bip100_voting[string(res)]++
 		}
 
-
 		m[miner] = om
-		if mid!=-1 && current_mid==-1 && minerid==string(common.MinerIds[mid].Tag) {
+		if mid != -1 && current_mid == -1 && minerid == string(common.MinerIds[mid].Tag) {
 			current_mid = mid
 		}
 		totbts += uint64(len(bl))
 		end = end.Parent
 	}
 
-	if cnt==0 {
+	if cnt == 0 {
 		write_html_head(w, r)
 		w.Write([]byte(fmt.Sprint("No blocks in last ", common.CFG.MiningStatHours, " hours")))
 		write_html_tail(w)
@@ -139,8 +138,8 @@ func p_miners(w http.ResponseWriter, r *http.Request) {
 	onerow := load_template("miners_row.html")
 
 	diff /= float64(cnt)
-	bph := float64(cnt)/float64(common.CFG.MiningStatHours)
-	hrate := bph/6 * diff * 7158278.826667
+	bph := float64(cnt) / float64(common.CFG.MiningStatHours)
+	hrate := bph / 6 * diff * 7158278.826667
 	mnrs = strings.Replace(mnrs, "{MINING_HOURS}", fmt.Sprint(common.CFG.MiningStatHours), 1)
 	mnrs = strings.Replace(mnrs, "{BLOCKS_COUNT}", fmt.Sprint(cnt), 1)
 	mnrs = strings.Replace(mnrs, "{FIRST_BLOCK_TIME}", time.Unix(lastts, 0).Format("2006-01-02 15:04:05"), 1)
@@ -170,7 +169,7 @@ func p_miners(w http.ResponseWriter, r *http.Request) {
 
 	var bv string
 	for k, v := range block_versions {
-		if bv!="" {
+		if bv != "" {
 			bv += " + "
 		}
 		bv += fmt.Sprintf("%dx%d", v, k)
@@ -180,7 +179,7 @@ func p_miners(w http.ResponseWriter, r *http.Request) {
 	// bip100
 	bv = ""
 	for k, v := range bip100_voting {
-		if bv!="" {
+		if bv != "" {
 			bv += " + "
 		}
 		bv += fmt.Sprintf("%sx%d", k, v)

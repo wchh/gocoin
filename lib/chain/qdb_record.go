@@ -2,10 +2,9 @@ package chain
 
 import (
 	"encoding/binary"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/qdb"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/qdb"
 )
-
 
 /*
 Each unspent key is 8 bytes long - thats firt 8 bytes of TXID
@@ -21,12 +20,11 @@ Eech value is variable length:
   ...
 */
 
-
 type QdbRec struct {
-	TxID [32]byte
+	TxID     [32]byte
 	Coinbase bool
-	InBlock uint32
-	Outs []*QdbTxOut
+	InBlock  uint32
+	Outs     []*QdbTxOut
 }
 
 type QdbTxOut struct {
@@ -34,18 +32,15 @@ type QdbTxOut struct {
 	PKScr []byte
 }
 
-
 func FullQdbRec(dat []byte) *QdbRec {
 	return NewQdbRec(qdb.KeyType(binary.LittleEndian.Uint64(dat[:8])), dat[8:])
 }
 
-
 var (
-	sta_rec QdbRec
+	sta_rec  QdbRec
 	rec_outs = make([]*QdbTxOut, 3075)
 	rec_pool = make([]QdbTxOut, 3075)
 )
-
 
 func NewQdbRecStatic(key qdb.KeyType, dat []byte) *QdbRec {
 	var off, n, i int
@@ -62,7 +57,7 @@ func NewQdbRecStatic(key qdb.KeyType, dat []byte) *QdbRec {
 	u64, n = btc.VULe(dat[off:])
 	off += n
 
-	sta_rec.Coinbase = (u64&1) != 0
+	sta_rec.Coinbase = (u64 & 1) != 0
 	u64 >>= 1
 	if len(rec_outs) < int(u64) {
 		rec_outs = make([]*QdbTxOut, u64)
@@ -86,13 +81,12 @@ func NewQdbRecStatic(key qdb.KeyType, dat []byte) *QdbRec {
 		i, n = btc.VLen(dat[off:])
 		off += n
 
-		sta_rec.Outs[idx].PKScr = dat[off:off+i]
+		sta_rec.Outs[idx].PKScr = dat[off : off+i]
 		off += i
 	}
 
 	return &sta_rec
 }
-
 
 func NewQdbRec(key qdb.KeyType, dat []byte) *QdbRec {
 	var off, n, i int
@@ -110,7 +104,7 @@ func NewQdbRec(key qdb.KeyType, dat []byte) *QdbRec {
 	u64, n = btc.VULe(dat[off:])
 	off += n
 
-	rec.Coinbase = (u64&1) != 0
+	rec.Coinbase = (u64 & 1) != 0
 	rec.Outs = make([]*QdbTxOut, u64>>1)
 
 	for off < len(dat) {
@@ -125,29 +119,28 @@ func NewQdbRec(key qdb.KeyType, dat []byte) *QdbRec {
 		i, n = btc.VLen(dat[off:])
 		off += n
 
-		rec.Outs[idx].PKScr = dat[off:off+i]
+		rec.Outs[idx].PKScr = dat[off : off+i]
 		off += i
 	}
 	return &rec
 }
 
 func vlen2size(uvl uint64) int {
-	if uvl<0xfd {
+	if uvl < 0xfd {
 		return 1
-	} else if uvl<0x10000 {
+	} else if uvl < 0x10000 {
 		return 3
-	} else if uvl<0x100000000 {
+	} else if uvl < 0x100000000 {
 		return 5
 	}
 	return 9
 }
 
-
 func (rec *QdbRec) Serialize(full bool) (buf []byte) {
 	var le, of int
 	var any_out bool
 
-	outcnt := uint64(len(rec.Outs)<<1)
+	outcnt := uint64(len(rec.Outs) << 1)
 	if rec.Coinbase {
 		outcnt |= 1
 	}
@@ -158,8 +151,8 @@ func (rec *QdbRec) Serialize(full bool) (buf []byte) {
 		le = 24
 	}
 
-	le += vlen2size(uint64(rec.InBlock))  // block length
-	le += vlen2size(outcnt)  // out count
+	le += vlen2size(uint64(rec.InBlock)) // block length
+	le += vlen2size(outcnt)              // out count
 
 	for i := range rec.Outs {
 		if rec.Outs[i] != nil {
@@ -197,11 +190,9 @@ func (rec *QdbRec) Serialize(full bool) (buf []byte) {
 	return
 }
 
-
 func (rec *QdbRec) Bytes() []byte {
 	return rec.Serialize(false)
 }
-
 
 func (r *QdbRec) ToUnspent(idx uint32, ad *btc.BtcAddr) (nr *OneUnspentTx) {
 	nr = new(OneUnspentTx)
@@ -216,14 +207,14 @@ func (r *QdbRec) ToUnspent(idx uint32, ad *btc.BtcAddr) (nr *OneUnspentTx) {
 }
 
 func (out *QdbTxOut) IsP2KH() bool {
-	return len(out.PKScr)==25 && out.PKScr[0]==0x76 && out.PKScr[1]==0xa9 &&
-		out.PKScr[2]==0x14 && out.PKScr[23]==0x88 && out.PKScr[24]==0xac
+	return len(out.PKScr) == 25 && out.PKScr[0] == 0x76 && out.PKScr[1] == 0xa9 &&
+		out.PKScr[2] == 0x14 && out.PKScr[23] == 0x88 && out.PKScr[24] == 0xac
 }
 
 func (r *QdbTxOut) IsP2SH() bool {
-	return len(r.PKScr)==23 && r.PKScr[0]==0xa9 && r.PKScr[1]==0x14 && r.PKScr[22]==0x87
+	return len(r.PKScr) == 23 && r.PKScr[0] == 0xa9 && r.PKScr[1] == 0x14 && r.PKScr[22] == 0x87
 }
 
 func (r *QdbTxOut) IsStealthIdx() bool {
-	return len(r.PKScr)==40 && r.PKScr[0]==0x6a && r.PKScr[1]==0x26 && r.PKScr[2]==0x06
+	return len(r.PKScr) == 40 && r.PKScr[0] == 0x6a && r.PKScr[1] == 0x26 && r.PKScr[2] == 0x06
 }

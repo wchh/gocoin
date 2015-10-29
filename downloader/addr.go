@@ -1,24 +1,22 @@
 package main
 
 import (
-	"time"
 	"bytes"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/others/peersdb"
+	"github.com/wchh/gocoin/lib/others/sys"
+	"github.com/wchh/gocoin/lib/qdb"
 	"math/rand"
-	"github.com/piotrnar/gocoin/lib/qdb"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/others/sys"
-	"github.com/piotrnar/gocoin/lib/others/peersdb"
+	"time"
 )
-
 
 func get_best_peer() (peer *peersdb.PeerAddr) {
 	adrs := peersdb.GetBestPeers(100, is_connected)
-	if len(adrs)==0 {
+	if len(adrs) == 0 {
 		return nil
 	}
 	return adrs[rand.Int31n(int32(len(adrs)))]
 }
-
 
 func parse_addr(pl []byte) {
 	b := bytes.NewBuffer(pl)
@@ -26,7 +24,7 @@ func parse_addr(pl []byte) {
 	for i := 0; i < int(cnt); i++ {
 		var buf [30]byte
 		n, e := b.Read(buf[:])
-		if n!=len(buf) || e!=nil {
+		if n != len(buf) || e != nil {
 			COUNTER("ADER")
 			break
 		}

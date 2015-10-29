@@ -1,23 +1,23 @@
 package wallet
 
 import (
-	"os"
-	"io/ioutil"
 	"encoding/json"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/client/common"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/lib/btc"
+	"io/ioutil"
+	"os"
 )
 
 type MultisigAddr struct {
-	MultiAddress string
-	ScriptPubKey string
+	MultiAddress               string
+	ScriptPubKey               string
 	KeysRequired, KeysProvided uint
-	RedeemScript string
-	ListOfAddres []string
+	RedeemScript               string
+	ListOfAddres               []string
 }
 
 func IsMultisig(ad *btc.BtcAddr) (yes bool, rec *MultisigAddr) {
-	yes = ad.Version==btc.AddrVerScript(common.Testnet)
+	yes = ad.Version == btc.AddrVerScript(common.Testnet)
 	if !yes {
 		return
 	}

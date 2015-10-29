@@ -1,51 +1,49 @@
 package chain
 
 import (
-	"os"
-	"fmt"
 	"bytes"
+	"encoding/binary"
 	"errors"
+	"fmt"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/qdb"
+	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
-	"io/ioutil"
-	"encoding/binary"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/qdb"
 )
 
-
 const (
-	NumberOfUnspentSubDBs = 0x10
-	UnwindBufferMaxHistory = 256  // Let's keep unwind history for so may last blocks
+	NumberOfUnspentSubDBs  = 0x10
+	UnwindBufferMaxHistory = 256 // Let's keep unwind history for so may last blocks
 )
 
 type FunctionWalkUnspent func(*QdbRec)
 
 // Used to pass block's changes to UnspentDB
 type BlockChanges struct {
-	Height uint32
-	LastKnownHeight uint32  // put here zero to disable this feature
-	AddList []*QdbRec
-	DeledTxs map[[32]byte] []bool
-	UndoData map[[32]byte] *QdbRec
+	Height          uint32
+	LastKnownHeight uint32 // put here zero to disable this feature
+	AddList         []*QdbRec
+	DeledTxs        map[[32]byte][]bool
+	UndoData        map[[32]byte]*QdbRec
 }
 
-
 type UnspentDB struct {
-	LastBlockHash []byte
-	LastBlockHeight uint32
-	dir string
-	tdb [NumberOfUnspentSubDBs] *qdb.DB
-	defragIndex int
-	defragCount uint64
+	LastBlockHash    []byte
+	LastBlockHeight  uint32
+	dir              string
+	tdb              [NumberOfUnspentSubDBs]*qdb.DB
+	defragIndex      int
+	defragCount      uint64
 	nosyncinprogress bool
-	ch *Chain
+	ch               *Chain
 }
 
 func NewUnspentDb(dir string, init bool, ch *Chain) (db *UnspentDB, undo_last_block bool) {
 	var maxbl_fn string
 	db = new(UnspentDB)
-	db.dir = dir+"unspent4"+string(os.PathSeparator)
+	db.dir = dir + "unspent4" + string(os.PathSeparator)
 
 	if init {
 		os.RemoveAll(db.dir)
@@ -53,25 +51,25 @@ func NewUnspentDb(dir string, init bool, ch *Chain) (db *UnspentDB, undo_last_bl
 		fis, _ := ioutil.ReadDir(db.dir)
 		var maxbl, undobl int
 		for _, fi := range fis {
-			if !fi.IsDir() && fi.Size()>=32 {
+			if !fi.IsDir() && fi.Size() >= 32 {
 				ss := strings.SplitN(fi.Name(), ".", 2)
 				cb, er := strconv.ParseUint(ss[0], 10, 32)
 				if er == nil && int(cb) > maxbl {
 					maxbl = int(cb)
 					maxbl_fn = db.dir + fi.Name()
-					if len(ss)==2 && ss[1]=="tmp" {
+					if len(ss) == 2 && ss[1] == "tmp" {
 						undobl = maxbl
 					}
 				}
 			}
 		}
-		if maxbl!=0 {
+		if maxbl != 0 {
 			db.LastBlockHeight = uint32(maxbl)
 			db.LastBlockHash = make([]byte, 32)
 			f, _ := os.Open(maxbl_fn)
 			f.Read(db.LastBlockHash)
 			f.Close()
-			if undobl==maxbl {
+			if undobl == maxbl {
 				undo_last_block = true
 			}
 		}
@@ -91,12 +89,11 @@ func NewUnspentDb(dir string, init bool, ch *Chain) (db *UnspentDB, undo_last_bl
 	return
 }
 
-
 // Commit the given add/del transactions to UTXO and Wnwind DBs
 func (db *UnspentDB) CommitBlockTxs(changes *BlockChanges, blhash []byte) (e error) {
 	undo_fn := fmt.Sprint(db.dir, changes.Height)
 
-	if changes.UndoData!=nil || (changes.Height%UnwindBufferMaxHistory)==0 {
+	if changes.UndoData != nil || (changes.Height%UnwindBufferMaxHistory) == 0 {
 		bu := new(bytes.Buffer)
 		bu.Write(blhash)
 		if changes.UndoData != nil {
@@ -112,25 +109,23 @@ func (db *UnspentDB) CommitBlockTxs(changes *BlockChanges, blhash []byte) (e err
 
 	db.nosync()
 	db.commit(changes)
-	if changes.LastKnownHeight<=changes.Height {
+	if changes.LastKnownHeight <= changes.Height {
 		db.Sync()
 	}
 
 	os.Rename(undo_fn+".tmp", undo_fn)
 
-
-	if db.LastBlockHash==nil {
+	if db.LastBlockHash == nil {
 		db.LastBlockHash = make([]byte, 32)
 	}
 	copy(db.LastBlockHash, blhash)
 	db.LastBlockHeight = changes.Height
 
-	if changes.Height>UnwindBufferMaxHistory {
+	if changes.Height > UnwindBufferMaxHistory {
 		os.Remove(fmt.Sprint(db.dir, changes.Height-UnwindBufferMaxHistory))
 	}
 	return
 }
-
 
 func (db *UnspentDB) UndoBlockTxs(bl *btc.Block, newhash []byte) {
 	for _, tx := range bl.Txs {
@@ -149,31 +144,31 @@ func (db *UnspentDB) UndoBlockTxs(bl *btc.Block, newhash []byte) {
 	}
 
 	dat, er := ioutil.ReadFile(fn)
-	if er!=nil {
+	if er != nil {
 		panic(er.Error())
 	}
 
-	off := 32  // ship the block hash
+	off := 32 // ship the block hash
 	for off < len(dat) {
 		le, n := btc.VLen(dat[off:])
 		off += n
-		qr := FullQdbRec(dat[off:off+le])
+		qr := FullQdbRec(dat[off : off+le])
 		off += le
 		addback = append(addback, qr)
 	}
 
 	for _, tx := range addback {
-		if db.ch.CB.NotifyTxAdd!=nil {
+		if db.ch.CB.NotifyTxAdd != nil {
 			db.ch.CB.NotifyTxAdd(tx)
 		}
 
 		ind := qdb.KeyType(binary.LittleEndian.Uint64(tx.TxID[:8]))
-		_db := db.dbN(int(tx.TxID[31])%NumberOfUnspentSubDBs)
+		_db := db.dbN(int(tx.TxID[31]) % NumberOfUnspentSubDBs)
 		v := _db.Get(ind)
 		if v != nil {
 			oldrec := NewQdbRec(ind, v)
 			for a := range tx.Outs {
-				if tx.Outs[a]==nil {
+				if tx.Outs[a] == nil {
 					tx.Outs[a] = oldrec.Outs[a]
 				}
 			}
@@ -186,24 +181,22 @@ func (db *UnspentDB) UndoBlockTxs(bl *btc.Block, newhash []byte) {
 	copy(db.LastBlockHash, newhash)
 }
 
-
 // Flush all the data to files
 func (db *UnspentDB) Sync() {
 	db.nosyncinprogress = false
 	for i := range db.tdb {
-		if db.tdb[i]!=nil {
+		if db.tdb[i] != nil {
 			db.tdb[i].Sync()
 		}
 	}
 	db.syncUnpent()
 }
 
-
 func (db *UnspentDB) syncUnpent() {
-	if db.LastBlockHash!=nil {
+	if db.LastBlockHash != nil {
 		fn := fmt.Sprint(db.dir, db.LastBlockHeight)
 		fi, er := os.Stat(fn)
-		if er!=nil || fi.Size()<32 {
+		if er != nil || fi.Size() < 32 {
 			ioutil.WriteFile(fn, db.LastBlockHash, 0666)
 		}
 	}
@@ -213,24 +206,22 @@ func (db *UnspentDB) syncUnpent() {
 func (db *UnspentDB) nosync() {
 	db.nosyncinprogress = true
 	for i := range db.tdb {
-		if db.tdb[i]!=nil {
+		if db.tdb[i] != nil {
 			db.tdb[i].NoSync()
 		}
 	}
 }
 
-
 // Flush the data and close all the files
 func (db *UnspentDB) Close() {
 	for i := range db.tdb {
-		if db.tdb[i]!=nil {
+		if db.tdb[i] != nil {
 			db.tdb[i].Close()
 			db.tdb[i] = nil
 		}
 	}
 	db.syncUnpent()
 }
-
 
 // Call it when the main thread is idle - this will do DB defrag
 func (db *UnspentDB) Idle() bool {
@@ -239,7 +230,7 @@ func (db *UnspentDB) Idle() bool {
 		if db.defragIndex >= len(db.tdb) {
 			db.defragIndex = 0
 		}
-		if db.tdb[db.defragIndex]!=nil && db.tdb[db.defragIndex].Defrag() {
+		if db.tdb[db.defragIndex] != nil && db.tdb[db.defragIndex].Defrag() {
 			db.defragCount++
 			return true
 		}
@@ -247,29 +238,27 @@ func (db *UnspentDB) Idle() bool {
 	return false
 }
 
-
 // Flush all the data to disk
 func (db *UnspentDB) Save() {
 	for i := range db.tdb {
-		if db.tdb[i]!=nil {
+		if db.tdb[i] != nil {
 			db.tdb[i].Flush()
 		}
 	}
 	db.syncUnpent()
 }
 
-
 // Get ne unspent output
 func (db *UnspentDB) UnspentGet(po *btc.TxPrevOut) (res *btc.TxOut, e error) {
 	ind := qdb.KeyType(binary.LittleEndian.Uint64(po.Hash[:8]))
-	v := db.dbN(int(po.Hash[31])%NumberOfUnspentSubDBs).Get(ind)
-	if v==nil {
+	v := db.dbN(int(po.Hash[31]) % NumberOfUnspentSubDBs).Get(ind)
+	if v == nil {
 		e = errors.New("Unspent TX not found")
 		return
 	}
 
 	rec := NewQdbRec(ind, v)
-	if len(rec.Outs)<int(po.Vout) || rec.Outs[po.Vout]==nil {
+	if len(rec.Outs) < int(po.Vout) || rec.Outs[po.Vout] == nil {
 		e = errors.New("Unspent VOut not found")
 		return
 	}
@@ -281,7 +270,6 @@ func (db *UnspentDB) UnspentGet(po *btc.TxPrevOut) (res *btc.TxOut, e error) {
 	res.Pk_script = rec.Outs[po.Vout].PKScr
 	return
 }
-
 
 // Browse through all unspent outputs
 func (db *UnspentDB) BrowseUTXO(quick bool, walk FunctionWalkUnspent) {
@@ -302,14 +290,14 @@ func (db *UnspentDB) BrowseUTXO(quick bool, walk FunctionWalkUnspent) {
 	}
 }
 
-func (db *UnspentDB) dbN(i int) (*qdb.DB) {
-	if db.tdb[i]==nil {
+func (db *UnspentDB) dbN(i int) *qdb.DB {
+	if db.tdb[i] == nil {
 		qdb.NewDBrowse(&db.tdb[i], db.dir+fmt.Sprintf("%06d", i), func(k qdb.KeyType, v []byte) uint32 {
-			if db.ch.CB.LoadWalk!=nil {
+			if db.ch.CB.LoadWalk != nil {
 				db.ch.CB.LoadWalk(NewQdbRecStatic(k, v))
 			}
 			return 0
-		}, 200000/*size of pre-allocated map*/)
+		}, 200000 /*size of pre-allocated map*/)
 
 		if db.nosyncinprogress {
 			db.tdb[i].NoSync()
@@ -318,15 +306,14 @@ func (db *UnspentDB) dbN(i int) (*qdb.DB) {
 	return db.tdb[i]
 }
 
-
 func (db *UnspentDB) del(hash []byte, outs []bool) {
-	if db.ch.CB.NotifyTxDel!=nil {
+	if db.ch.CB.NotifyTxDel != nil {
 		db.ch.CB.NotifyTxDel(hash, outs)
 	}
 	ind := qdb.KeyType(binary.LittleEndian.Uint64(hash[:8]))
-	_db := db.dbN(int(hash[31])%NumberOfUnspentSubDBs)
+	_db := db.dbN(int(hash[31]) % NumberOfUnspentSubDBs)
 	v := _db.Get(ind)
-	if v==nil {
+	if v == nil {
 		return // no such txid in UTXO (just ignorde delete request)
 	}
 	rec := NewQdbRec(ind, v)
@@ -345,12 +332,11 @@ func (db *UnspentDB) del(hash []byte, outs []bool) {
 	}
 }
 
-
 func (db *UnspentDB) commit(changes *BlockChanges) {
 	// Now aplly the unspent changes
 	for _, rec := range changes.AddList {
 		ind := qdb.KeyType(binary.LittleEndian.Uint64(rec.TxID[:8]))
-		if db.ch.CB.NotifyTxAdd!=nil {
+		if db.ch.CB.NotifyTxAdd != nil {
 			db.ch.CB.NotifyTxAdd(rec)
 		}
 		db.dbN(int(rec.TxID[31])%NumberOfUnspentSubDBs).PutExt(ind, rec.Bytes(), 0)
@@ -360,28 +346,27 @@ func (db *UnspentDB) commit(changes *BlockChanges) {
 	}
 }
 
-
 func (db *UnspentDB) PrintCoinAge() {
 	const chunk = 10000
 	var maxbl uint32
 	type onerec struct {
 		cnt, bts, val, valcb uint64
 	}
-	age := make(map[uint32] *onerec)
+	age := make(map[uint32]*onerec)
 	for i := range db.tdb {
 		db.dbN(i).BrowseAll(func(k qdb.KeyType, v []byte) uint32 {
 			rec := NewQdbRecStatic(k, v)
 			a := rec.InBlock
-			if a>maxbl {
+			if a > maxbl {
 				maxbl = a
 			}
 			a /= chunk
 			tmp := age[a]
-			if tmp==nil {
+			if tmp == nil {
 				tmp = new(onerec)
 			}
 			for _, ou := range rec.Outs {
-				if ou!=nil {
+				if ou != nil {
 					tmp.val += ou.Value
 					if rec.Coinbase {
 						tmp.valcb += ou.Value
@@ -394,15 +379,15 @@ func (db *UnspentDB) PrintCoinAge() {
 			return 0
 		})
 	}
-	for i:=uint32(0); i<=(maxbl/chunk); i++ {
-		tb := (i+1)*chunk-1
-		if tb>maxbl {
+	for i := uint32(0); i <= (maxbl / chunk); i++ {
+		tb := (i+1)*chunk - 1
+		if tb > maxbl {
 			tb = maxbl
 		}
-		cnt := uint64(tb-i*chunk)+1
+		cnt := uint64(tb-i*chunk) + 1
 		fmt.Printf(" Blocks  %6d ... %6d: %9d records, %5d MB, %18s/%16s BTC.  Per block:%7.1f records,%8d,%15s BTC\n",
 			i*chunk, tb, age[i].cnt, age[i].bts>>20, btc.UintToBtc(age[i].val), btc.UintToBtc(age[i].valcb),
-			float64(age[i].cnt)/float64(cnt), (age[i].bts/cnt), btc.UintToBtc(age[i].val/cnt))
+			float64(age[i].cnt)/float64(cnt), (age[i].bts / cnt), btc.UintToBtc(age[i].val/cnt))
 	}
 }
 
@@ -412,7 +397,7 @@ func (db *UnspentDB) GetStats() (s string) {
 	var mincnt, maxcnt, totdatasize, unspendable uint64
 	for i := range db.tdb {
 		dbcnt := uint64(db.dbN(i).Count())
-		if i==0 {
+		if i == 0 {
 			mincnt, maxcnt = dbcnt, dbcnt
 		} else if dbcnt < mincnt {
 			mincnt = dbcnt
@@ -421,20 +406,20 @@ func (db *UnspentDB) GetStats() (s string) {
 		}
 		tot += dbcnt
 		db.dbN(i).Browse(func(k qdb.KeyType, v []byte) uint32 {
-			totdatasize += uint64(len(v)+8)
+			totdatasize += uint64(len(v) + 8)
 			rec := NewQdbRecStatic(k, v)
 			for idx, r := range rec.Outs {
-				if r!=nil {
+				if r != nil {
 					outcnt++
 					sum += r.Value
 					if rec.Coinbase {
 						sumcb += r.Value
 					}
-					if len(r.PKScr)>0 && r.PKScr[0]==0x6a {
+					if len(r.PKScr) > 0 && r.PKScr[0] == 0x6a {
 						unspendable++
 					}
-					if r.IsStealthIdx() && idx+1<len(rec.Outs) {
-						if rec.Outs[idx+1]!=nil {
+					if r.IsStealthIdx() && idx+1 < len(rec.Outs) {
+						if rec.Outs[idx+1] != nil {
 							stealth_uns++
 						}
 						stealth_tot++

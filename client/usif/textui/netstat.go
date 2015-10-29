@@ -2,18 +2,16 @@ package textui
 
 import (
 	"fmt"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/client/network"
+	"github.com/wchh/gocoin/lib/others/peersdb"
 	"sort"
 	"time"
-	"github.com/piotrnar/gocoin/client/network"
-	"github.com/piotrnar/gocoin/client/common"
-	"github.com/piotrnar/gocoin/lib/others/peersdb"
 )
-
 
 func net_drop(par string) {
 	network.DropPeer(par)
 }
-
 
 func node_info(par string) {
 	v := network.Look4conn(par)
@@ -23,7 +21,6 @@ func node_info(par string) {
 		fmt.Print(v.Stats())
 	}
 }
-
 
 func net_conn(par string) {
 	ad, er := peersdb.NewPeerFromString(par, false)
@@ -35,12 +32,11 @@ func net_conn(par string) {
 	network.DoNetwork(ad)
 }
 
-
 func net_stats(par string) {
-	if par=="bw" {
+	if par == "bw" {
 		common.PrintStats()
 		return
-	} else if par!="" {
+	} else if par != "" {
 		node_info(par)
 		return
 	}
@@ -67,18 +63,18 @@ func net_stats(par string) {
 		}
 		fmt.Printf(" %21s %5dms %7d : %-16s %7d : %-16s", v.PeerAddr.Ip(),
 			v.GetAveragePing(), v.LastBtsRcvd, v.LastCmdRcvd, v.LastBtsSent, v.LastCmdSent)
-		if (v.BytesReceived|v.BytesSent)!=0 {
+		if (v.BytesReceived | v.BytesSent) != 0 {
 			fmt.Printf("%9s %9s", common.BytesToString(v.BytesReceived), common.BytesToString(v.BytesSent))
 		}
 		fmt.Print("  ", v.Node.Agent)
-		if v.Send.Buf !=nil {
+		if v.Send.Buf != nil {
 			fmt.Print("  ", len(v.Send.Buf))
 		}
 		v.Mutex.Unlock()
 		fmt.Println()
 	}
 
-	if network.ExternalAddrLen()>0 {
+	if network.ExternalAddrLen() > 0 {
 		fmt.Print("External addresses:")
 		network.ExternalIpMutex.Lock()
 		for ip, cnt := range network.ExternalIp4 {
@@ -102,7 +98,6 @@ func net_stats(par string) {
 
 	common.PrintStats()
 }
-
 
 func init() {
 	newUi("net n", false, net_stats, "Show network statistics. Specify ID to see its details.")

@@ -1,18 +1,18 @@
 package common
 
 import (
-	"os"
-	"fmt"
-	"flag"
-	"sync"
-	"time"
-	"strings"
-	"io/ioutil"
-	"sync/atomic"
-	"runtime/debug"
 	"encoding/json"
-	"github.com/piotrnar/gocoin/lib/chain"
-	"github.com/piotrnar/gocoin/lib/others/sys"
+	"flag"
+	"fmt"
+	"github.com/wchh/gocoin/lib/chain"
+	"github.com/wchh/gocoin/lib/others/sys"
+	"io/ioutil"
+	"os"
+	"runtime/debug"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 var (
@@ -21,71 +21,69 @@ var (
 	}
 
 	CFG struct { // Options that can come from either command line or common file
-		Testnet bool
+		Testnet     bool
 		ConnectOnly string
-		Datadir string
-		Walletdir string
-		TextUI struct {
+		Datadir     string
+		Walletdir   string
+		TextUI      struct {
 			Enabled bool
 		}
 		WebUI struct {
-			Interface string
-			AllowedIP string // comma separated
-			ShowBlocks uint32
+			Interface   string
+			AllowedIP   string // comma separated
+			ShowBlocks  uint32
 			AddrListLen uint32 // size of address list in MakeTx tab popups
 		}
 		Net struct {
-			ListenTCP bool
-			TCPPort uint16
-			MaxOutCons uint32
-			MaxInCons uint32
-			MaxUpKBps uint
-			MaxDownKBps uint
+			ListenTCP      bool
+			TCPPort        uint16
+			MaxOutCons     uint32
+			MaxInCons      uint32
+			MaxUpKBps      uint
+			MaxDownKBps    uint
 			MaxBlockAtOnce uint32
 		}
 		TXPool struct {
-			Enabled bool // Global on/off swicth
+			Enabled        bool // Global on/off swicth
 			AllowMemInputs bool
-			FeePerByte uint64
-			MaxTxSize uint32
-			MinVoutValue uint64
+			FeePerByte     uint64
+			MaxTxSize      uint32
+			MinVoutValue   uint64
 			// If something is 1KB big, it expires after this many minutes.
 			// Otherwise expiration time will be proportionally different.
 			TxExpireMinPerKB uint
 			TxExpireMaxHours uint
 		}
 		TXRoute struct {
-			Enabled bool // Global on/off swicth
-			FeePerByte uint64
-			MaxTxSize uint32
+			Enabled      bool // Global on/off swicth
+			FeePerByte   uint64
+			MaxTxSize    uint32
 			MinVoutValue uint64
 		}
 		Memory struct {
-			GCPercTrshold int
+			GCPercTrshold   int
 			MaxCachedBlocks uint
 		}
 		Beeps struct {
-			NewBlock bool  // beep when a new block has been mined
-			ActiveFork bool  // triple beep when there is a fork
-			NewBalance bool // been when a balance has changed
-			MinerID string // beep when a bew block is mined with this string in coinbase
+			NewBlock   bool   // beep when a new block has been mined
+			ActiveFork bool   // triple beep when there is a fork
+			NewBalance bool   // been when a balance has changed
+			MinerID    string // beep when a bew block is mined with this string in coinbase
 		}
 		MiningStatHours uint
-		HashrateHours uint
-		UserAgent string
-		PayCommandName string
+		HashrateHours   uint
+		UserAgent       string
+		PayCommandName  string
 	}
 
 	mutex_cfg sync.Mutex
 )
-
 
 type oneAllowedAddr struct {
 	Addr, Mask uint32
 }
 
 var WebUIAllowed []oneAllowedAddr
-
 
 func InitConfig() {
 	// Fill in default values
@@ -112,7 +110,7 @@ func InitConfig() {
 	CFG.TXRoute.Enabled = true
 	CFG.TXRoute.FeePerByte = 1
 	CFG.TXRoute.MaxTxSize = 10e3
-	CFG.TXRoute.MinVoutValue = 500*CFG.TXRoute.FeePerByte // Equivalent of 500 bytes tx fee
+	CFG.TXRoute.MinVoutValue = 500 * CFG.TXRoute.FeePerByte // Equivalent of 500 bytes tx fee
 
 	CFG.Memory.GCPercTrshold = 100 // 100%
 	CFG.Memory.MaxCachedBlocks = 500
@@ -123,7 +121,7 @@ func InitConfig() {
 	CFG.PayCommandName = "pay_cmd.txt"
 
 	cfgfilecontent, e := ioutil.ReadFile(ConfigFile)
-	if e==nil && len(cfgfilecontent)>0 {
+	if e == nil && len(cfgfilecontent) > 0 {
 		e = json.Unmarshal(cfgfilecontent, &CFG)
 		if e != nil {
 			println("Error in", ConfigFile, e.Error())
@@ -165,7 +163,6 @@ func InitConfig() {
 	Reset()
 }
 
-
 func DataSubdir() string {
 	if CFG.Testnet {
 		return "tstnet"
@@ -173,7 +170,6 @@ func DataSubdir() string {
 		return "btcnet"
 	}
 }
-
 
 func SaveConfig() bool {
 	dat, _ := json.Marshal(&CFG)
@@ -206,36 +202,35 @@ func Reset() {
 	WebUIAllowed = nil
 	for i := range ips {
 		oaa := str2oaa(ips[i])
-		if oaa!=nil {
+		if oaa != nil {
 			WebUIAllowed = append(WebUIAllowed, *oaa)
 		} else {
 			println("ERROR: Incorrect AllowedIP:", ips[i])
 		}
 	}
-	if len(WebUIAllowed)==0 {
+	if len(WebUIAllowed) == 0 {
 		println("WARNING: No IP is currently allowed at WebUI")
 	}
 	SetListenTCP(CFG.Net.ListenTCP, false)
 	ReloadMiners()
 }
 
-
 // Converts an IP range to addr/mask
 func str2oaa(ip string) (res *oneAllowedAddr) {
-	var a,b,c,d,x uint32
+	var a, b, c, d, x uint32
 	n, _ := fmt.Sscanf(ip, "%d.%d.%d.%d/%d", &a, &b, &c, &d, &x)
-	if n<4 {
+	if n < 4 {
 		return
 	}
-	if (a|b|c|d)>255 || n==5 && (x<1 || x>32) {
+	if (a|b|c|d) > 255 || n == 5 && (x < 1 || x > 32) {
 		return
 	}
 	res = new(oneAllowedAddr)
-	res.Addr = (a<<24) | (b<<16) | (c<<8) | d
-	if n==4 || x==32 {
+	res.Addr = (a << 24) | (b << 16) | (c << 8) | d
+	if n == 4 || x == 32 {
 		res.Mask = 0xffffffff
 	} else {
-		res.Mask = uint32(( uint64(1) << (32-x) ) - 1)  ^ 0xffffffff
+		res.Mask = uint32((uint64(1)<<(32-x))-1) ^ 0xffffffff
 	}
 	res.Addr &= res.Mask
 	//fmt.Printf(" %s -> %08x / %08x\n", ip, res.Addr, res.Mask)
@@ -251,7 +246,7 @@ func UnlockCfg() {
 }
 
 func CloseBlockChain() {
-	if BlockChain!=nil {
+	if BlockChain != nil {
 		println("Closing blockchain")
 		BlockChain.Sync()
 		BlockChain.Save()
@@ -260,11 +255,10 @@ func CloseBlockChain() {
 	}
 }
 
-
 var listen_tcp uint32
 
 func IsListenTCP() bool {
-	return atomic.LoadUint32(&listen_tcp)!=0
+	return atomic.LoadUint32(&listen_tcp) != 0
 }
 
 func SetListenTCP(yes bool, global bool) {

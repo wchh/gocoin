@@ -1,32 +1,30 @@
 package main
 
 import (
-	"os"
-	"fmt"
-	"time"
 	"bytes"
-	"unsafe"
-	"runtime"
+	"fmt"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/client/network"
+	"github.com/wchh/gocoin/client/usif"
+	"github.com/wchh/gocoin/client/usif/textui"
+	"github.com/wchh/gocoin/client/usif/webui"
+	"github.com/wchh/gocoin/client/wallet"
+	"github.com/wchh/gocoin/lib"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/chain"
+	"github.com/wchh/gocoin/lib/others/peersdb"
+	"github.com/wchh/gocoin/lib/others/sys"
+	"github.com/wchh/gocoin/lib/qdb"
+	"os"
 	"os/signal"
+	"runtime"
 	"runtime/debug"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/qdb"
-	"github.com/piotrnar/gocoin/lib/chain"
-	"github.com/piotrnar/gocoin/lib"
-	"github.com/piotrnar/gocoin/lib/others/sys"
-	"github.com/piotrnar/gocoin/client/common"
-	"github.com/piotrnar/gocoin/client/wallet"
-	"github.com/piotrnar/gocoin/client/network"
-	"github.com/piotrnar/gocoin/client/usif"
-	"github.com/piotrnar/gocoin/client/usif/textui"
-	"github.com/piotrnar/gocoin/client/usif/webui"
-	"github.com/piotrnar/gocoin/lib/others/peersdb"
+	"time"
+	"unsafe"
 )
-
 
 var killchan chan os.Signal = make(chan os.Signal)
 var retryCachedBlocks bool
-
 
 /* this would print text messages for transactions that are being processed
 func contains_message(tx *btc.Tx) []byte {
@@ -42,7 +40,6 @@ func contains_message(tx *btc.Tx) []byte {
 }
 */
 
-
 func LocalAcceptBlock(bl *btc.Block, from *network.OneConnection) (e error) {
 	sta := time.Now()
 	e = common.BlockChain.AcceptBlock(bl)
@@ -51,7 +48,7 @@ func LocalAcceptBlock(bl *btc.Block, from *network.OneConnection) (e error) {
 		network.ReceivedBlocks[bl.Hash.BIdx()].TmAccept = time.Now().Sub(sta)
 		network.MutexRcv.Unlock()
 
-		for i:=1; i<len(bl.Txs); i++ {
+		for i := 1; i < len(bl.Txs); i++ {
 			network.TxMined(bl.Txs[i])
 			/* dupa
 			if msg:=contains_message(bl.Txs[i]); msg!=nil {
@@ -76,7 +73,7 @@ func LocalAcceptBlock(bl *btc.Block, from *network.OneConnection) (e error) {
 				textui.ShowPrompt()
 			}
 
-			if common.CFG.Beeps.MinerID!="" {
+			if common.CFG.Beeps.MinerID != "" {
 				//_, rawtxlen := btc.NewTx(bl[bl.TxOffset:])
 				if bytes.Contains(bl.Txs[0].Serialize(), []byte(common.CFG.Beeps.MinerID)) {
 					fmt.Println("\007Mined by '"+common.CFG.Beeps.MinerID+"':", bl.Hash)
@@ -96,7 +93,7 @@ func LocalAcceptBlock(bl *btc.Block, from *network.OneConnection) (e error) {
 				textui.ShowPrompt()
 			}
 
-			if wallet.BalanceChanged && common.CFG.Beeps.NewBalance{
+			if wallet.BalanceChanged && common.CFG.Beeps.NewBalance {
 				fmt.Print("\007")
 			}
 		}
@@ -118,17 +115,16 @@ func LocalAcceptBlock(bl *btc.Block, from *network.OneConnection) (e error) {
 	return
 }
 
-
 func retry_cached_blocks() bool {
-	if len(network.CachedBlocks)==0 {
+	if len(network.CachedBlocks) == 0 {
 		return false
 	}
 	accepted_cnt := 0
 	for k, v := range network.CachedBlocks {
-		common.Busy("Cache.CheckBlock "+v.Block.Hash.String())
+		common.Busy("Cache.CheckBlock " + v.Block.Hash.String())
 		e, dos, maybelater := common.BlockChain.CheckBlock(v.Block)
 		if e == nil {
-			common.Busy("Cache.AcceptBlock "+v.Block.Hash.String())
+			common.Busy("Cache.AcceptBlock " + v.Block.Hash.String())
 			e := LocalAcceptBlock(v.Block, v.Conn)
 			if e == nil {
 				//fmt.Println("*** Old block accepted", common.BlockChain.BlockTreeEnd.Height)
@@ -152,15 +148,14 @@ func retry_cached_blocks() bool {
 			}
 		}
 	}
-	return accepted_cnt>0 && len(network.CachedBlocks)>0
+	return accepted_cnt > 0 && len(network.CachedBlocks) > 0
 }
-
 
 // Called from the blockchain thread
 func HandleNetBlock(newbl *network.BlockRcvd) {
 	common.CountSafe("HandleNetBlock")
 	bl := newbl.Block
-	common.Busy("CheckBlock "+bl.Hash.String())
+	common.Busy("CheckBlock " + bl.Hash.String())
 	e, dos, maybelater := common.BlockChain.CheckBlock(bl)
 	if e != nil {
 		if maybelater {
@@ -172,7 +167,7 @@ func HandleNetBlock(newbl *network.BlockRcvd) {
 			}
 		}
 	} else {
-		common.Busy("LocalAcceptBlock "+bl.Hash.String())
+		common.Busy("LocalAcceptBlock " + bl.Hash.String())
 		e = LocalAcceptBlock(bl, newbl.Conn)
 		if e == nil {
 			retryCachedBlocks = retry_cached_blocks()
@@ -183,9 +178,8 @@ func HandleNetBlock(newbl *network.BlockRcvd) {
 	}
 }
 
-
 func defrag_db() {
-	if (usif.DefragBlocksDB&1) != 0 {
+	if (usif.DefragBlocksDB & 1) != 0 {
 		qdb.SetDefragPercent(1)
 		fmt.Print("Defragmenting UTXO database")
 		for {
@@ -197,22 +191,22 @@ func defrag_db() {
 		fmt.Println("done")
 	}
 
-	if (usif.DefragBlocksDB&2) != 0 {
+	if (usif.DefragBlocksDB & 2) != 0 {
 		fmt.Println("Creating empty database in", common.GocoinHomeDir+"defrag", "...")
-		os.RemoveAll(common.GocoinHomeDir+"defrag")
-		defragdb := chain.NewBlockDB(common.GocoinHomeDir+"defrag")
+		os.RemoveAll(common.GocoinHomeDir + "defrag")
+		defragdb := chain.NewBlockDB(common.GocoinHomeDir + "defrag")
 		fmt.Println("Defragmenting the database...")
 		blk := common.BlockChain.BlockTreeRoot
 		for {
 			blk = blk.FindPathTo(common.BlockChain.BlockTreeEnd)
-			if blk==nil {
+			if blk == nil {
 				fmt.Println("Database defragmenting finished successfully")
 				fmt.Println("To use the new DB, move the two new files to a parent directory and restart the client")
 				break
 			}
-			if (blk.Height&0xff)==0 {
+			if (blk.Height & 0xff) == 0 {
 				fmt.Printf("%d / %d blocks written (%d%%)\r", blk.Height, common.BlockChain.BlockTreeEnd.Height,
-					100 * blk.Height / common.BlockChain.BlockTreeEnd.Height)
+					100*blk.Height/common.BlockChain.BlockTreeEnd.Height)
 			}
 			bl, trusted, er := common.BlockChain.Blocks.BlockGet(blk.BlockHash)
 			if er != nil {
@@ -231,7 +225,6 @@ func defrag_db() {
 		defragdb.Close()
 	}
 }
-
 
 func main() {
 	var ptr *byte
@@ -263,7 +256,7 @@ func main() {
 	common.InitConfig()
 	host_init() // This will create the DB lock file and keep it open
 
-	peersTick := time.Tick(5*time.Minute)
+	peersTick := time.Tick(5 * time.Minute)
 	txPoolTick := time.Tick(time.Minute)
 	netTick := time.Tick(time.Second)
 
@@ -286,7 +279,7 @@ func main() {
 		go textui.MainThread()
 	}
 
-	if common.CFG.WebUI.Interface!="" {
+	if common.CFG.WebUI.Interface != "" {
 		fmt.Println("Starting WebUI at", common.CFG.WebUI.Interface, "...")
 		go webui.ServerThread(common.CFG.WebUI.Interface)
 	}
@@ -296,7 +289,7 @@ func main() {
 		for retryCachedBlocks {
 			retryCachedBlocks = retry_cached_blocks()
 			// We have done one per loop - now do something else if pending...
-			if len(network.NetBlocks)>0 || len(usif.UiChannel)>0 {
+			if len(network.NetBlocks) > 0 || len(usif.UiChannel) > 0 {
 				break
 			}
 		}
@@ -304,57 +297,57 @@ func main() {
 		common.Busy("")
 
 		select {
-			case s := <-killchan:
-				fmt.Println("Got signal:", s)
-				usif.Exit_now = true
-				continue
+		case s := <-killchan:
+			fmt.Println("Got signal:", s)
+			usif.Exit_now = true
+			continue
 
-			case newbl := <-network.NetBlocks:
-				common.CountSafe("MainNetBlock")
-				HandleNetBlock(newbl)
+		case newbl := <-network.NetBlocks:
+			common.CountSafe("MainNetBlock")
+			HandleNetBlock(newbl)
 
-			case newtx := <-network.NetTxs:
-				common.CountSafe("MainNetTx")
-				network.HandleNetTx(newtx, false)
+		case newtx := <-network.NetTxs:
+			common.CountSafe("MainNetTx")
+			network.HandleNetTx(newtx, false)
 
-			case newal := <-network.NetAlerts:
-				common.CountSafe("MainNetAlert")
-				fmt.Println("\007" + newal)
-				textui.ShowPrompt()
+		case newal := <-network.NetAlerts:
+			common.CountSafe("MainNetAlert")
+			fmt.Println("\007" + newal)
+			textui.ShowPrompt()
 
-			case <-netTick:
-				common.CountSafe("MainNetTick")
-				network.NetworkTick()
+		case <-netTick:
+			common.CountSafe("MainNetTick")
+			network.NetworkTick()
 
-			case cmd := <-usif.UiChannel:
-				common.CountSafe("MainUICmd")
-				common.Busy("UI command")
-				cmd.Handler(cmd.Param)
-				cmd.Done.Done()
-				continue
+		case cmd := <-usif.UiChannel:
+			common.CountSafe("MainUICmd")
+			common.Busy("UI command")
+			cmd.Handler(cmd.Param)
+			cmd.Done.Done()
+			continue
 
-			case <-peersTick:
-				peersdb.ExpirePeers()
+		case <-peersTick:
+			peersdb.ExpirePeers()
 
-			case <-txPoolTick:
-				network.ExpireTxs()
+		case <-txPoolTick:
+			network.ExpireTxs()
 
-			case <-time.After(time.Second/2):
-				common.CountSafe("MainThreadTouts")
-				if !retryCachedBlocks {
-					common.Busy("common.BlockChain.Idle()")
-					if common.BlockChain.Idle() {
-						common.CountSafe("ChainIdleUsed")
-					}
+		case <-time.After(time.Second / 2):
+			common.CountSafe("MainThreadTouts")
+			if !retryCachedBlocks {
+				common.Busy("common.BlockChain.Idle()")
+				if common.BlockChain.Idle() {
+					common.CountSafe("ChainIdleUsed")
 				}
-				continue
+			}
+			continue
 		}
 	}
 
 	network.NetCloseAll()
 	peersdb.ClosePeerDB()
 
-	if usif.DefragBlocksDB!=0 {
+	if usif.DefragBlocksDB != 0 {
 		defrag_db()
 	}
 

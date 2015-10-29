@@ -1,10 +1,10 @@
 package chain
 
 import (
-	"fmt"
-	"encoding/hex"
 	"encoding/binary"
-	"github.com/piotrnar/gocoin/lib/btc"
+	"encoding/hex"
+	"fmt"
+	"github.com/wchh/gocoin/lib/btc"
 )
 
 type AllUnspentTx []*OneUnspentTx
@@ -12,12 +12,12 @@ type AllUnspentTx []*OneUnspentTx
 // Returned by GetUnspentFromPkScr
 type OneUnspentTx struct {
 	btc.TxPrevOut
-	Value uint64
+	Value   uint64
 	MinedAt uint32
 	*btc.BtcAddr
-	StealthC []byte
+	StealthC   []byte
 	destString string
-	Coinbase bool
+	Coinbase   bool
 }
 
 func (x AllUnspentTx) Len() int {
@@ -26,7 +26,7 @@ func (x AllUnspentTx) Len() int {
 
 func (x AllUnspentTx) Less(i, j int) bool {
 	if x[i].MinedAt == x[j].MinedAt {
-		if x[i].TxPrevOut.Hash==x[j].TxPrevOut.Hash {
+		if x[i].TxPrevOut.Hash == x[j].TxPrevOut.Hash {
 			return x[i].TxPrevOut.Vout < x[j].TxPrevOut.Vout
 		}
 		return binary.LittleEndian.Uint64(x[i].TxPrevOut.Hash[24:32]) <
@@ -41,7 +41,7 @@ func (x AllUnspentTx) Swap(i, j int) {
 
 func (ou *OneUnspentTx) String() (s string) {
 	s = fmt.Sprintf("%15.8f  ", float64(ou.Value)/1e8) + ou.TxPrevOut.String()
-	if ou.BtcAddr!=nil {
+	if ou.BtcAddr != nil {
 		s += " " + ou.DestAddr() + ou.BtcAddr.Label()
 	}
 	if ou.MinedAt != 0 {
@@ -57,17 +57,17 @@ func (ou *OneUnspentTx) FixDestString() {
 func (ou *OneUnspentTx) UnspentTextLine() (s string) {
 	s = fmt.Sprintf("%s # %.8f BTC @ %s%s, block %d", ou.TxPrevOut.String(),
 		float64(ou.Value)/1e8, ou.DestAddr(), ou.BtcAddr.Label(), ou.MinedAt)
-	if ou.StealthC!=nil {
+	if ou.StealthC != nil {
 		s += ", _StealthC:" + hex.EncodeToString(ou.StealthC)
 	}
 	return
 }
 
-func (ou *OneUnspentTx) DestAddr() (string) {
-	if ou.destString=="" {
+func (ou *OneUnspentTx) DestAddr() string {
+	if ou.destString == "" {
 		return ou.BtcAddr.String()
 	}
-	if ou.StealthC!=nil {
+	if ou.StealthC != nil {
 		return "@" + ou.destString
 	}
 	return ou.destString

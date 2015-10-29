@@ -12,12 +12,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/piotrnar/gocoin/lib/others/cgo/sipasec"
-	"github.com/piotrnar/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/others/cgo/sipasec"
 )
 
 func EC_Verify(k, s, h []byte) bool {
-	return sipasec.EC_Verify(k, s, h)==1
+	return sipasec.EC_Verify(k, s, h) == 1
 }
 
 func init() {

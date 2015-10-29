@@ -1,14 +1,13 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
 	"encoding/hex"
-	"github.com/piotrnar/gocoin/lib/btc"
+	"fmt"
+	"github.com/wchh/gocoin/lib/btc"
+	"io/ioutil"
 )
 
 const MultiToSignOut = "multi2sign.txt"
-
 
 // add P2SH pre-signing data into a raw tx
 func make_p2sh() {
@@ -42,7 +41,6 @@ func make_p2sh() {
 	fmt.Println("Transaction with", len(tx.TxIn), "inputs ready for multi-signing, stored in", MultiToSignOut)
 }
 
-
 // reorder signatures to meet order of the keys
 // remove signatuers made by the same keys
 // remove exessive signatures (keeps transaction size down)
@@ -71,7 +69,7 @@ func multisig_reorder(tx *btc.Tx) (all_signed bool) {
 				fmt.Println("WARNING: Key number", ki, "has no matching signature")
 			}
 
-			if !*allowextramsigns && uint(len(sigs))>=ms.SigsNeeded {
+			if !*allowextramsigns && uint(len(sigs)) >= ms.SigsNeeded {
 				break
 			}
 		}
@@ -104,7 +102,7 @@ func multisig_sign() {
 	}
 
 	k := address_to_key(*multisign)
-	if k==nil {
+	if k == nil {
 		println("You do not know a key for address", *multisign)
 		return
 	}
@@ -123,7 +121,7 @@ func multisig_sign() {
 			println(e.Error())
 			return
 		}
-		btcsig := &btc.Signature{HashType:0x01}
+		btcsig := &btc.Signature{HashType: 0x01}
 		btcsig.R.Set(r)
 		btcsig.S.Set(s)
 

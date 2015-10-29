@@ -1,25 +1,24 @@
 package btc
 
 import (
-	"errors"
 	"encoding/binary"
-	"github.com/piotrnar/gocoin/lib/others/sys"
+	"errors"
+	"github.com/wchh/gocoin/lib/others/sys"
 )
 
 type Block struct {
-	Raw []byte
-	Hash *Uint256
-	Txs []*Tx
+	Raw               []byte
+	Hash              *Uint256
+	Txs               []*Tx
 	TxCount, TxOffset int  // Number of transactions and byte offset to the first one
-	Trusted bool // if the block is trusted, we do not check signatures and some other things...
-	LastKnownHeight uint32
+	Trusted           bool // if the block is trusted, we do not check signatures and some other things...
+	LastKnownHeight   uint32
 
 	VerifyFlags uint32 // These flags are set by chain.CheckBlock and used by script.VerifyTxScript
 }
 
-
 func NewBlock(data []byte) (*Block, error) {
-	if len(data)<81 {
+	if len(data) < 81 {
 		return nil, errors.New("Block too short")
 	}
 
@@ -34,27 +33,25 @@ func NewBlock(data []byte) (*Block, error) {
 	return &bl, nil
 }
 
-
-func (bl *Block)Version() uint32 {
+func (bl *Block) Version() uint32 {
 	return binary.LittleEndian.Uint32(bl.Raw[0:4])
 }
 
-func (bl *Block)ParentHash() []byte {
+func (bl *Block) ParentHash() []byte {
 	return bl.Raw[4:36]
 }
 
-func (bl *Block)MerkleRoot() []byte {
+func (bl *Block) MerkleRoot() []byte {
 	return bl.Raw[36:68]
 }
 
-func (bl *Block)BlockTime() uint32 {
+func (bl *Block) BlockTime() uint32 {
 	return binary.LittleEndian.Uint32(bl.Raw[68:72])
 }
 
-func (bl *Block)Bits() uint32 {
+func (bl *Block) Bits() uint32 {
 	return binary.LittleEndian.Uint32(bl.Raw[72:76])
 }
-
 
 // Parses block's transactions and adds them to the structure, calculating hashes BTW.
 // It would be more elegant to use bytes.Reader here, but this solution is ~20% faster.
@@ -64,22 +61,22 @@ func (bl *Block) BuildTxList() (e error) {
 	offs := bl.TxOffset
 
 	done := make(chan bool, sys.UseThreads)
-	for i:=0; i<sys.UseThreads; i++ {
+	for i := 0; i < sys.UseThreads; i++ {
 		done <- false
 	}
 
-	for i:=0; i<bl.TxCount; i++ {
+	for i := 0; i < bl.TxCount; i++ {
 		var n int
 		bl.Txs[i], n = NewTx(bl.Raw[offs:])
-		if bl.Txs[i] == nil || n==0 {
+		if bl.Txs[i] == nil || n == 0 {
 			e = errors.New("NewTx failed")
 			break
 		}
 		bl.Txs[i].Size = uint32(n)
-		_ = <- done // wait here, if we have too many threads already
+		_ = <-done // wait here, if we have too many threads already
 		go func(h **Uint256, b []byte) {
 			*h = NewSha2Hash(b) // Calculate tx hash in a background
-			done <- true // indicate mission completed
+			done <- true        // indicate mission completed
 		}(&bl.Txs[i].Hash, bl.Raw[offs:offs+n])
 		offs += n
 	}
@@ -89,13 +86,12 @@ func (bl *Block) BuildTxList() (e error) {
 	}
 
 	// Wait for all the pending missions to complete...
-	for i:=0; i<sys.UseThreads; i++ {
-		_ = <- done
+	for i := 0; i < sys.UseThreads; i++ {
+		_ = <-done
 	}
 	return
 }
 
-
-func GetBlockReward(height uint32) (uint64) {
-	return 50e8 >> (height/210000)
+func GetBlockReward(height uint32) uint64 {
+	return 50e8 >> (height / 210000)
 }

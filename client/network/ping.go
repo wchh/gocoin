@@ -1,39 +1,37 @@
 package network
 
 import (
-	"time"
+	"crypto/rand"
+	"github.com/wchh/gocoin/client/common"
 	"sort"
 	"sync/atomic"
-	"crypto/rand"
-	"github.com/piotrnar/gocoin/client/common"
+	"time"
 )
-
 
 func (c *OneConnection) HandlePong() {
 	ms := time.Now().Sub(c.LastPingSent) / time.Millisecond
-	if common.DebugLevel>1 {
+	if common.DebugLevel > 1 {
 		println(c.PeerAddr.Ip(), "pong after", ms, "ms", time.Now().Sub(c.LastPingSent).String())
 	}
 	c.Mutex.Lock()
 	c.PingHistory[c.PingHistoryIdx] = int(ms)
-	c.PingHistoryIdx = (c.PingHistoryIdx+1)%PingHistoryLength
+	c.PingHistoryIdx = (c.PingHistoryIdx + 1) % PingHistoryLength
 	c.PingInProgress = nil
 	c.NextPing = time.Now().Add(PingPeriod)
 	c.Mutex.Unlock()
 }
 
-
 // Make sure to called it within c.Mutex.Lock()
 func (c *OneConnection) GetAveragePing() int {
-	if c.Node.Version>60000 {
-		var pgs[PingHistoryLength] int
+	if c.Node.Version > 60000 {
+		var pgs [PingHistoryLength]int
 		copy(pgs[:], c.PingHistory[:])
 		sort.Ints(pgs[:])
 		var sum int
-		for i:=0; i<PingHistoryValid; i++ {
+		for i := 0; i < PingHistoryValid; i++ {
 			sum += pgs[i]
 		}
-		return sum/PingHistoryValid
+		return sum / PingHistoryValid
 	} else {
 		return PingAssumedIfUnsupported
 	}
@@ -67,9 +65,8 @@ func drop_slowest_peer() {
 	Mutex_net.Unlock()
 }
 
-
 func (c *OneConnection) TryPing() {
-	if c.Node.Version>60000 && c.PingInProgress == nil && time.Now().After(c.NextPing) {
+	if c.Node.Version > 60000 && c.PingInProgress == nil && time.Now().After(c.NextPing) {
 		/*&&len(c.Send.Buf)==0 && len(c.GetBlocksInProgress)==0*/
 		c.PingInProgress = make([]byte, 8)
 		rand.Read(c.PingInProgress[:])

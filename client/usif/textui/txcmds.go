@@ -1,17 +1,16 @@
 package textui
 
 import (
-	"os"
 	"fmt"
+	"github.com/wchh/gocoin/client/network"
+	"github.com/wchh/gocoin/client/usif"
+	"github.com/wchh/gocoin/lib/btc"
+	"os"
 	"time"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/client/usif"
-	"github.com/piotrnar/gocoin/client/network"
 )
 
-
 func load_tx(par string) {
-	if par=="" {
+	if par == "" {
 		fmt.Println("Specify a name of a transaction file")
 		return
 	}
@@ -28,10 +27,9 @@ func load_tx(par string) {
 	fmt.Println(usif.LoadRawTx(buf))
 }
 
-
 func send_tx(par string) {
 	txid := btc.NewUint256FromString(par)
-	if txid==nil {
+	if txid == nil {
 		fmt.Println("You must specify a valid transaction ID for this command.")
 		list_txs("")
 		return
@@ -50,10 +48,9 @@ func send_tx(par string) {
 	}
 }
 
-
 func send1_tx(par string) {
 	txid := btc.NewUint256FromString(par)
-	if txid==nil {
+	if txid == nil {
 		fmt.Println("You must specify a valid transaction ID for this command.")
 		list_txs("")
 		return
@@ -72,10 +69,9 @@ func send1_tx(par string) {
 	}
 }
 
-
 func del_tx(par string) {
 	txid := btc.NewUint256FromString(par)
-	if txid==nil {
+	if txid == nil {
 		fmt.Println("You must specify a valid transaction ID for this command.")
 		list_txs("")
 		return
@@ -92,10 +88,9 @@ func del_tx(par string) {
 	fmt.Println("Transaction", txid.String(), "removed from the memory pool")
 }
 
-
 func dec_tx(par string) {
 	txid := btc.NewUint256FromString(par)
-	if txid==nil {
+	if txid == nil {
 		fmt.Println("You must specify a valid transaction ID for this command.")
 		list_txs("")
 		return
@@ -108,7 +103,6 @@ func dec_tx(par string) {
 	}
 }
 
-
 func list_txs(par string) {
 	fmt.Println("Transactions in the memory pool:")
 	cnt := 0
@@ -116,7 +110,7 @@ func list_txs(par string) {
 	for _, v := range network.TransactionsToSend {
 		cnt++
 		var oe, snt string
-		if v.Own!=0 {
+		if v.Own != 0 {
 			oe = " *OWN*"
 		} else {
 			oe = ""
@@ -124,7 +118,7 @@ func list_txs(par string) {
 
 		snt = fmt.Sprintf("INV sent %d times,   ", v.Invsentcnt)
 
-		if v.SentCnt==0 {
+		if v.SentCnt == 0 {
 			snt = "TX never sent"
 		} else {
 			snt = fmt.Sprintf("TX sent %d times, last %s ago", v.SentCnt,
@@ -134,7 +128,6 @@ func list_txs(par string) {
 	}
 	network.TxMutex.Unlock()
 }
-
 
 func baned_txs(par string) {
 	fmt.Println("Rejected transactions:")
@@ -148,11 +141,10 @@ func baned_txs(par string) {
 	network.TxMutex.Unlock()
 }
 
-
 func send_all_tx(par string) {
 	network.TxMutex.Lock()
 	for k, v := range network.TransactionsToSend {
-		if v.Own!=0 {
+		if v.Own != 0 {
 			cnt := network.NetRouteInv(1, btc.NewUint256(k[:]), nil)
 			v.Invsentcnt += cnt
 			fmt.Println("INV for TxID", v.Hash.String(), "sent to", cnt, "node(s)")
@@ -161,7 +153,7 @@ func send_all_tx(par string) {
 	network.TxMutex.Unlock()
 }
 
-func init () {
+func init() {
 	newUi("txload tx", true, load_tx, "Load transaction data from the given file, decode it and store in memory")
 	newUi("txsend stx", true, send_tx, "Broadcast transaction from memory pool (identified by a given <txid>)")
 	newUi("tx1send stx1", true, send1_tx, "Broadcast transaction to a single random peer (identified by a given <txid>)")

@@ -1,21 +1,21 @@
 package webui
 
 import (
-	"os"
-	"fmt"
-	"time"
-	"strings"
-	"net/http"
-	"io/ioutil"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/client/wallet"
+	"github.com/wchh/gocoin/lib"
+	"io/ioutil"
+	"net/http"
+	"os"
 	"path/filepath"
-	"github.com/piotrnar/gocoin/lib"
-	"github.com/piotrnar/gocoin/client/common"
-	"github.com/piotrnar/gocoin/client/wallet"
+	"strings"
+	"time"
 )
 
-var webuimenu = [][2]string {
+var webuimenu = [][2]string{
 	{"/", "Home"},
 	{"/wal", "Wallet"},
 	{"/snd", "MakeTx"},
@@ -37,14 +37,14 @@ func ipchecker(r *http.Request) bool {
 	if common.NetworkClosed {
 		return false
 	}
-	var a,b,c,d uint32
+	var a, b, c, d uint32
 	n, _ := fmt.Sscanf(r.RemoteAddr, "%d.%d.%d.%d", &a, &b, &c, &d)
-	if n!=4 {
+	if n != 4 {
 		return false
 	}
-	addr := (a<<24) | (b<<16) | (c<<8) | d
+	addr := (a << 24) | (b << 16) | (c << 8) | d
 	for i := range common.WebUIAllowed {
-		if (addr&common.WebUIAllowed[i].Mask)==common.WebUIAllowed[i].Addr {
+		if (addr & common.WebUIAllowed[i].Mask) == common.WebUIAllowed[i].Addr {
 			r.ParseForm()
 			return true
 		}
@@ -53,17 +53,14 @@ func ipchecker(r *http.Request) bool {
 	return false
 }
 
-
 func load_template(fn string) string {
-	dat, _ := ioutil.ReadFile("www/templates/"+fn)
+	dat, _ := ioutil.ReadFile("www/templates/" + fn)
 	return string(dat)
 }
-
 
 func templ_add(tmpl string, id string, val string) string {
 	return strings.Replace(tmpl, id, val+id, 1)
 }
-
 
 func p_webui(w http.ResponseWriter, r *http.Request) {
 	if !ipchecker(r) {
@@ -71,12 +68,14 @@ func p_webui(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pth := strings.SplitN(r.URL.Path[1:], "/", 3)
-	if len(pth)==2 {
-		dat, _ := ioutil.ReadFile("www/resources/"+pth[1])
-		if len(dat)>0 {
+	if len(pth) == 2 {
+		dat, _ := ioutil.ReadFile("www/resources/" + pth[1])
+		if len(dat) > 0 {
 			switch filepath.Ext(r.URL.Path) {
-				case ".js": w.Header()["Content-Type"] = []string{"text/javascript"}
-				case ".css": w.Header()["Content-Type"] = []string{"text/css"}
+			case ".js":
+				w.Header()["Content-Type"] = []string{"text/javascript"}
+			case ".css":
+				w.Header()["Content-Type"] = []string{"text/css"}
 			}
 			w.Write(dat)
 		} else {
@@ -84,7 +83,6 @@ func p_webui(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-
 
 func sid(r *http.Request) string {
 	c, _ := r.Cookie("sid")
@@ -94,45 +92,42 @@ func sid(r *http.Request) string {
 	return ""
 }
 
-
 func checksid(r *http.Request) bool {
-	if len(r.Form["sid"])==0 {
+	if len(r.Form["sid"]) == 0 {
 		return false
 	}
-	if len(r.Form["sid"][0])<16 {
+	if len(r.Form["sid"][0]) < 16 {
 		return false
 	}
-	return r.Form["sid"][0]==sid(r)
+	return r.Form["sid"][0] == sid(r)
 }
-
 
 func new_session_id(w http.ResponseWriter) (sessid string) {
 	var sid [16]byte
 	rand.Read(sid[:])
 	sessid = hex.EncodeToString(sid[:])
-	http.SetCookie(w, &http.Cookie{Name:"sid", Value:sessid})
+	http.SetCookie(w, &http.Cookie{Name: "sid", Value: sessid})
 	return
 }
-
 
 func write_html_head(w http.ResponseWriter, r *http.Request) {
 	start_time = time.Now()
 
 	sessid := sid(r)
-	if sessid=="" {
+	if sessid == "" {
 		sessid = new_session_id(w)
 	}
 
 	// Quick switch wallet
-	if checksid(r) && len(r.Form["qwalsel"])>0 {
+	if checksid(r) && len(r.Form["qwalsel"]) > 0 {
 		wallet.LoadWallet(common.CFG.Walletdir + string(os.PathSeparator) + r.Form["qwalsel"][0])
 		http.Redirect(w, r, r.URL.Path, http.StatusFound)
 		return
 	}
 
 	// If currently selected wallet is address book and we are not on the wallet page - switch to default
-	if r.URL.Path!="/wal" && wallet.MyWallet!=nil &&
-		strings.HasSuffix(wallet.MyWallet.FileName, string(os.PathSeparator) + wallet.AddrBookFileName) {
+	if r.URL.Path != "/wal" && wallet.MyWallet != nil &&
+		strings.HasSuffix(wallet.MyWallet.FileName, string(os.PathSeparator)+wallet.AddrBookFileName) {
 		wallet.LoadWallet(common.CFG.Walletdir + string(os.PathSeparator) + wallet.DefaultFileName)
 		http.Redirect(w, r, r.URL.Path, http.StatusFound)
 		return
@@ -141,8 +136,8 @@ func write_html_head(w http.ResponseWriter, r *http.Request) {
 	s := load_template("page_head.html")
 	s = strings.Replace(s, "{VERSION}", lib.Version, 1)
 	s = strings.Replace(s, "{SESSION_ID}", sessid, 1)
-	if r.URL.Path!="/" {
-		s = strings.Replace(s, "{HELPURL}", "help#" + r.URL.Path[1:], 1)
+	if r.URL.Path != "/" {
+		s = strings.Replace(s, "{HELPURL}", "help#"+r.URL.Path[1:], 1)
 	} else {
 		s = strings.Replace(s, "{HELPURL}", "help", 1)
 	}
@@ -153,15 +148,15 @@ func write_html_head(w http.ResponseWriter, r *http.Request) {
 	}
 	for i := range webuimenu {
 		var x string
-		if i>0 && i<len(webuimenu)-1 {
+		if i > 0 && i < len(webuimenu)-1 {
 			x = " | "
 		}
 		x += "<a "
-		if r.URL.Path==webuimenu[i][0] {
+		if r.URL.Path == webuimenu[i][0] {
 			x += "class=\"menuat\" "
 		}
-		x += "href=\""+webuimenu[i][0]+"\">"+webuimenu[i][1]+"</a>"
-		if i==len(webuimenu)-1 {
+		x += "href=\"" + webuimenu[i][0] + "\">" + webuimenu[i][1] + "</a>"
+		if i == len(webuimenu)-1 {
 			s = strings.Replace(s, "{MENU_LEFT}", "", 1)
 			s = strings.Replace(s, "{MENU_RIGHT}", x, 1)
 		} else {
@@ -170,16 +165,16 @@ func write_html_head(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Quick wallet switch
-	fis, er := ioutil.ReadDir(common.CFG.Walletdir+string(os.PathSeparator))
+	fis, er := ioutil.ReadDir(common.CFG.Walletdir + string(os.PathSeparator))
 	if er == nil {
 		for i := range fis {
-			if !fis[i].IsDir() && fis[i].Size()>1 && fis[i].Name()[0]!='.' && fis[i].Name()!=wallet.AddrBookFileName {
+			if !fis[i].IsDir() && fis[i].Size() > 1 && fis[i].Name()[0] != '.' && fis[i].Name() != wallet.AddrBookFileName {
 				var ow string
-				if wallet.MyWallet!=nil && strings.HasSuffix(wallet.MyWallet.FileName,
-					string(os.PathSeparator) + fis[i].Name()) {
-					ow = "<option selected>"+fis[i].Name()+"</option>"
+				if wallet.MyWallet != nil && strings.HasSuffix(wallet.MyWallet.FileName,
+					string(os.PathSeparator)+fis[i].Name()) {
+					ow = "<option selected>" + fis[i].Name() + "</option>"
 				} else {
-					ow = "<option>"+fis[i].Name()+"</option>"
+					ow = "<option>" + fis[i].Name() + "</option>"
 				}
 				s = templ_add(s, "<!--QUICK_WALLET_SELECT-->", ow)
 			}
@@ -201,10 +196,10 @@ func p_help(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fname := "help.html"
-	if len(r.Form["topic"])>0 && len(r.Form["topic"][0])==4 {
-		for i:=0; i<4; i++ {
-			if r.Form["topic"][0][i]<'a' || r.Form["topic"][0][i]>'z' {
-				goto broken_topic  // we only accept 4 locase characters
+	if len(r.Form["topic"]) > 0 && len(r.Form["topic"][0]) == 4 {
+		for i := 0; i < 4; i++ {
+			if r.Form["topic"][0][i] < 'a' || r.Form["topic"][0][i] > 'z' {
+				goto broken_topic // we only accept 4 locase characters
 			}
 		}
 		fname = "help_" + r.Form["topic"][0] + ".html"
@@ -216,7 +211,6 @@ broken_topic:
 	w.Write([]byte(page))
 	write_html_tail(w)
 }
-
 
 func ServerThread(iface string) {
 	http.HandleFunc("/webui/", p_webui)

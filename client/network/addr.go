@@ -1,24 +1,22 @@
 package network
 
 import (
-	"time"
-	"sync"
 	"bytes"
 	"encoding/binary"
-	"github.com/piotrnar/gocoin/lib/qdb"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/others/sys"
-	"github.com/piotrnar/gocoin/client/common"
-	"github.com/piotrnar/gocoin/lib/others/peersdb"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/others/peersdb"
+	"github.com/wchh/gocoin/lib/others/sys"
+	"github.com/wchh/gocoin/lib/qdb"
+	"sync"
+	"time"
 )
-
 
 var (
-	ExternalIp4 map[uint32][2]uint = make(map[uint32][2]uint) // [0]-count, [1]-timestamp
-	ExternalIpMutex sync.Mutex
+	ExternalIp4            map[uint32][2]uint = make(map[uint32][2]uint) // [0]-count, [1]-timestamp
+	ExternalIpMutex        sync.Mutex
 	ExternalIpExpireTicker int
 )
-
 
 func ExternalAddrLen() (res int) {
 	ExternalIpMutex.Lock()
@@ -26,7 +24,6 @@ func ExternalAddrLen() (res int) {
 	ExternalIpMutex.Unlock()
 	return
 }
-
 
 func BestExternalAddr() []byte {
 	var best_ip, worst_ip uint32
@@ -66,10 +63,9 @@ func BestExternalAddr() []byte {
 	return res
 }
 
-
 func (c *OneConnection) SendAddr() {
 	pers := peersdb.GetBestPeers(MaxAddrsPerMessage, nil)
-	if len(pers)>0 {
+	if len(pers) > 0 {
 		buf := new(bytes.Buffer)
 		btc.WriteVlen(buf, uint64(len(pers)))
 		for i := range pers {
@@ -80,9 +76,8 @@ func (c *OneConnection) SendAddr() {
 	}
 }
 
-
 func (c *OneConnection) SendOwnAddr() {
-	if ExternalAddrLen()>0 {
+	if ExternalAddrLen() > 0 {
 		buf := new(bytes.Buffer)
 		btc.WriteVlen(buf, uint64(1))
 		binary.Write(buf, binary.LittleEndian, uint32(time.Now().Unix()))
@@ -98,7 +93,7 @@ func (c *OneConnection) ParseAddr(pl []byte) {
 	for i := 0; i < int(cnt); i++ {
 		var buf [30]byte
 		n, e := b.Read(buf[:])
-		if n!=len(buf) || e!=nil {
+		if n != len(buf) || e != nil {
 			common.CountSafe("AddrError")
 			c.DoS("AddrError")
 			//println("ParseAddr:", n, e)

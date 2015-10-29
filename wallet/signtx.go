@@ -1,13 +1,12 @@
 package main
 
 import (
-	"os"
-	"fmt"
 	"bytes"
 	"encoding/hex"
-	"github.com/piotrnar/gocoin/lib/btc"
+	"fmt"
+	"github.com/wchh/gocoin/lib/btc"
+	"os"
 )
-
 
 // prepare a signed transaction
 func sign_tx(tx *btc.Tx) (all_signed bool) {
@@ -26,7 +25,7 @@ func sign_tx(tx *btc.Tx) (all_signed bool) {
 						println("ERROR in sign_tx:", e.Error())
 						all_signed = false
 					} else {
-						btcsig := &btc.Signature{HashType:0x01}
+						btcsig := &btc.Signature{HashType: 0x01}
 						btcsig.R.Set(r)
 						btcsig.S.Set(s)
 
@@ -38,7 +37,7 @@ func sign_tx(tx *btc.Tx) (all_signed bool) {
 			}
 		} else {
 			uo := getUO(&tx.TxIn[in].Input)
-			if uo==nil {
+			if uo == nil {
 				println("ERROR: Unkown input:", tx.TxIn[in].Input.String(), "- missing balance folder?")
 				all_signed = false
 				continue
@@ -83,14 +82,13 @@ func write_tx_file(tx *btc.Tx) {
 	hs := tx.Hash.String()
 	fmt.Println("TxID", hs)
 
-	f, _ := os.Create(hs[:8]+".txt")
+	f, _ := os.Create(hs[:8] + ".txt")
 	if f != nil {
 		f.Write([]byte(hex.EncodeToString(signedrawtx)))
 		f.Close()
 		fmt.Println("Transaction data stored in", hs[:8]+".txt")
 	}
 }
-
 
 // prepare a signed transaction
 func make_signed_tx() {
@@ -114,13 +112,13 @@ func make_signed_tx() {
 
 		btcsofar += uo.Value
 		unspentOuts[i].spent = true
-		if !*useallinputs && ( btcsofar >= spendBtc + feeBtc ) {
+		if !*useallinputs && (btcsofar >= spendBtc+feeBtc) {
 			break
 		}
 	}
 	if btcsofar < (spendBtc + feeBtc) {
 		fmt.Println("ERROR: You have", btc.UintToBtc(btcsofar), "BTC, but you need",
-			btc.UintToBtc(spendBtc + feeBtc), "BTC for the transaction")
+			btc.UintToBtc(spendBtc+feeBtc), "BTC for the transaction")
 		cleanExit(1)
 	}
 	changeBtc = btcsofar - (spendBtc + feeBtc)
@@ -152,7 +150,7 @@ func make_signed_tx() {
 		tx.TxOut = append(tx.TxOut, outs...)
 	}
 
-	if *message!="" {
+	if *message != "" {
 		// Add NULL output with an arbitrary message
 		scr := new(bytes.Buffer)
 		scr.WriteByte(0x6a) // OP_RETURN
@@ -168,7 +166,6 @@ func make_signed_tx() {
 		apply_to_balance(tx)
 	}
 }
-
 
 // sign raw transaction with all the keys we have
 func process_raw_tx() {

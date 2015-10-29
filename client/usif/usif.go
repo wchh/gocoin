@@ -1,33 +1,31 @@
 package usif
 
 import (
-	"fmt"
-	"time"
-	"sync"
-	"errors"
-	"math/rand"
-	"encoding/hex"
 	"encoding/binary"
-	"github.com/piotrnar/gocoin/lib/btc"
-	"github.com/piotrnar/gocoin/lib/script"
-	"github.com/piotrnar/gocoin/client/common"
-	"github.com/piotrnar/gocoin/client/network"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"github.com/wchh/gocoin/client/common"
+	"github.com/wchh/gocoin/client/network"
+	"github.com/wchh/gocoin/lib/btc"
+	"github.com/wchh/gocoin/lib/script"
+	"math/rand"
+	"sync"
+	"time"
 )
 
-
 type OneUiReq struct {
-	Param string
+	Param   string
 	Handler func(pars string)
-	Done sync.WaitGroup
+	Done    sync.WaitGroup
 }
 
 var (
 	UiChannel chan *OneUiReq = make(chan *OneUiReq, 1)
 
-	Exit_now bool
+	Exit_now       bool
 	DefragBlocksDB int // 0-no, 1-only UTXO, 2-only blocks, 3-all
 )
-
 
 func DecodeTx(tx *btc.Tx) (s string, missinginp bool, totinp, totout uint64, e error) {
 	s += fmt.Sprintln("Transaction details (for your information):")
@@ -60,7 +58,7 @@ func DecodeTx(tx *btc.Tx) (s string, missinginp bool, totinp, totout uint64, e e
 			totinp += po.Value
 
 			ads := "???"
-			if ad:=btc.NewAddrFromPkScript(po.Pk_script, common.Testnet); ad!=nil {
+			if ad := btc.NewAddrFromPkScript(po.Pk_script, common.Testnet); ad != nil {
 				ads = ad.String()
 			}
 			s += fmt.Sprintf(" %15.8f BTC @ %s\n", float64(po.Value)/1e8, ads)
@@ -73,7 +71,7 @@ func DecodeTx(tx *btc.Tx) (s string, missinginp bool, totinp, totout uint64, e e
 	for i := range tx.TxOut {
 		totout += tx.TxOut[i].Value
 		adr := btc.NewAddrFromPkScript(tx.TxOut[i].Pk_script, common.Testnet)
-		if adr!=nil {
+		if adr != nil {
 			s += fmt.Sprintf(" %15.8f BTC to adr %s\n", float64(tx.TxOut[i].Value)/1e8, adr.String())
 		} else {
 			s += fmt.Sprintf(" %15.8f BTC to scr %s\n", float64(tx.TxOut[i].Value)/1e8, hex.EncodeToString(tx.TxOut[i].Pk_script))
@@ -97,7 +95,7 @@ func LoadRawTx(buf []byte) (s string) {
 
 	// At this place we should have raw transaction in txd
 	tx, le := btc.NewTx(txd)
-	if tx==nil || le != len(txd) {
+	if tx == nil || le != len(txd) {
 		s += fmt.Sprintln("Could not decode transaction file or it has some extra data")
 		return
 	}
@@ -118,17 +116,16 @@ func LoadRawTx(buf []byte) (s string) {
 	}
 
 	if missinginp {
-		network.TransactionsToSend[tx.Hash.BIdx()] = &network.OneTxToSend{Tx:tx, Data:txd, Own:2, Firstseen:time.Now(),
-			Volume:totout}
+		network.TransactionsToSend[tx.Hash.BIdx()] = &network.OneTxToSend{Tx: tx, Data: txd, Own: 2, Firstseen: time.Now(),
+			Volume: totout}
 	} else {
-		network.TransactionsToSend[tx.Hash.BIdx()] = &network.OneTxToSend{Tx:tx, Data:txd, Own:1, Firstseen:time.Now(),
-			Volume:totinp, Fee:totinp-totout}
+		network.TransactionsToSend[tx.Hash.BIdx()] = &network.OneTxToSend{Tx: tx, Data: txd, Own: 1, Firstseen: time.Now(),
+			Volume: totinp, Fee: totinp - totout}
 	}
 	s += fmt.Sprintln("Transaction added to the memory pool. Please double check its details above.")
 	s += fmt.Sprintln("If it does what you intended, you can send it the network.\nUse TxID:", tx.Hash.String())
 	return
 }
-
 
 func SendInvToRandomPeer(typ uint32, h *btc.Uint256) {
 	common.CountSafe(fmt.Sprint("NetSendOneInv", typ))
@@ -143,7 +140,7 @@ func SendInvToRandomPeer(typ uint32, h *btc.Uint256) {
 	idx := rand.Intn(len(network.OpenCons))
 	var cnt int
 	for _, v := range network.OpenCons {
-		if idx==cnt {
+		if idx == cnt {
 			v.Mutex.Lock()
 			v.PendingInvs = append(v.PendingInvs, inv)
 			v.Mutex.Unlock()
@@ -155,7 +152,6 @@ func SendInvToRandomPeer(typ uint32, h *btc.Uint256) {
 	return
 }
 
-
 func GetNetworkHashRate() string {
 	hours := common.CFG.HashrateHours
 	common.Last.Mutex.Lock()
@@ -164,25 +160,24 @@ func GetNetworkHashRate() string {
 	now := time.Now().Unix()
 	cnt := 0
 	var diff float64
-	for ; end!=nil; cnt++ {
+	for ; end != nil; cnt++ {
 		if now-int64(end.Timestamp()) > int64(hours)*3600 {
 			break
 		}
 		diff += btc.GetDifficulty(end.Bits())
 		end = end.Parent
 	}
-	if cnt==0 {
+	if cnt == 0 {
 		return "0"
 	}
 	diff /= float64(cnt)
-	bph := float64(cnt)/float64(hours)
-	return common.HashrateToString(bph/6 * diff * 7158278.826667)
+	bph := float64(cnt) / float64(hours)
+	return common.HashrateToString(bph / 6 * diff * 7158278.826667)
 }
-
 
 func ExecUiReq(req *OneUiReq) {
 	common.Busy_mutex.Lock()
-	if common.BusyWith!="" {
+	if common.BusyWith != "" {
 		fmt.Print("now common.BusyWith with ", common.BusyWith)
 	}
 	common.Busy_mutex.Unlock()
@@ -197,7 +192,6 @@ func ExecUiReq(req *OneUiReq) {
 		fmt.Print("> ")
 	}()
 }
-
 
 func init() {
 	rand.Seed(int64(time.Now().Nanosecond()))

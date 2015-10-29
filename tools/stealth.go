@@ -1,14 +1,14 @@
 package main
 
 import (
-	"os"
-	"fmt"
 	"encoding/hex"
-	"github.com/piotrnar/gocoin/lib/btc"
+	"fmt"
+	"github.com/wchh/gocoin/lib/btc"
+	"os"
 )
 
 func main() {
-	if len(os.Args)!=2 {
+	if len(os.Args) != 2 {
 		fmt.Println("Specify Stealth Address to decode")
 		return
 	}
@@ -24,7 +24,7 @@ func main() {
 		fmt.Println("spndKey:", hex.EncodeToString(a.SpendKeys[i][:]))
 	}
 	fmt.Println("sigNeed:", a.Sigs)
-	if len(a.Prefix)>0 {
+	if len(a.Prefix) > 0 {
 		fmt.Println("Prefix :", fmt.Sprint(hex.EncodeToString(a.Prefix[1:]), "/", a.Prefix[0]))
 	}
 }
